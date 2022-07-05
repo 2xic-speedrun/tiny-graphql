@@ -1,38 +1,37 @@
 package parser
 
 import (
-	"fmt"
 	"strings"
 )
 
 func GetTokens(schema string) []string {
-	var tokens []string
+	tokens := TokensParser{
+		tokens:       []string{},
+		currentToken: "",
+	}
 	terminators := []string{"(", ")", "{", "}", ":"}
-	currentToken := ""
 	index := 0
+
 	for index < len(schema) {
 		char := string(schema[index])
-		if contains(terminators, char) {
-			if 0 < len(currentToken) {
-				tokens = append(tokens, currentToken)
-				fmt.Println(currentToken)
+		if char == "#" {
+			tokens.addToken(tokens.currentToken)
+			for index < len(schema) && string(schema[index]) != "\n" {
+				index++
 			}
-			tokens = append(tokens, char)
-			currentToken = ""
+		} else if contains(terminators, char) {
+			tokens.addToken(tokens.currentToken)
+			tokens.addToken(char)
 			index++
 		} else if len(strings.TrimSpace(char)) == 0 {
-			if 0 < len(currentToken) {
-				tokens = append(tokens, currentToken)
-				fmt.Println(currentToken)
-			}
-			currentToken = ""
+			tokens.addToken(tokens.currentToken)
 			index++
 		} else {
-			currentToken += char
+			tokens.currentToken += char
 			index++
 		}
 	}
-	return tokens
+	return tokens.tokens
 }
 
 func contains(list []string, a string) bool {
@@ -42,4 +41,16 @@ func contains(list []string, a string) bool {
 		}
 	}
 	return false
+}
+
+func (tokenParser *TokensParser) addToken(token string) {
+	if 0 < len(token) {
+		tokenParser.tokens = append(tokenParser.tokens, token)
+	}
+	tokenParser.currentToken = ""
+}
+
+type TokensParser struct {
+	tokens       []string
+	currentToken string
 }

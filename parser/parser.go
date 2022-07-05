@@ -53,7 +53,7 @@ func (parser *Parser) ParseObjectAndFields(name string) ObjectAndFields {
 			if field == nil {
 				panic("Something is wrong")
 			} else {
-				fmt.Printf("FOund field %s\n", *field)
+				fmt.Printf("Found field %s\n", *field)
 				results.fields = append(results.fields, *field)
 			}
 		} else {
@@ -78,30 +78,36 @@ func (parser *Parser) ParseObject() *string {
 			parser.index += 1
 
 			// push arguments here
-			for true {
-				finished := parser.Peek(0)
-				fmt.Printf("finished ? %s\n", *finished)
-				if finished != nil && *finished == ")" {
-					break
-				}
-
-				key := parser.Peek(0)
-				terminator := parser.Peek(1)
-				value := parser.Peek(2)
-				if key != nil && terminator != nil && value != nil {
-					// push
-					parser.index += 3
-				} else {
-					panic("Invalid arguments")
-				}
-			}
+			parser.ParseArguments()
 
 			parser.index += 2
+		} else {
+			parser.index += 1
 		}
 
 		return &results
 	} else {
 		return nil
+	}
+}
+
+func (parser *Parser) ParseArguments() {
+	for true {
+		finished := parser.Peek(0)
+		fmt.Printf("finished ? %s\n", *finished)
+		if finished != nil && *finished == ")" {
+			break
+		}
+
+		key := parser.Peek(0)
+		terminator := parser.Peek(1)
+		value := parser.Peek(2)
+		if key != nil && terminator != nil && value != nil {
+			// push
+			parser.index += 3
+		} else {
+			panic("Invalid arguments")
+		}
 	}
 }
 
