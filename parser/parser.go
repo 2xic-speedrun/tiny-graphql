@@ -2,6 +2,8 @@ package parser
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 )
 
 func Parse(schema string) Schema {
@@ -44,13 +46,6 @@ func (parser *Parser) ParseSchema() Schema {
 }
 
 func (parser *Parser) ParseObjectAndFields(results ObjectAndFields, alias *string) ObjectAndFields {
-	/*	results := ObjectAndFields{
-			name:    name,
-			objects: []ObjectAndFields{},
-			fields:  []Field{},
-			alias:   alias,
-		}
-	*/
 	results.alias = alias
 	for parser.index < len(parser.Tokens) {
 		peekToken := parser.Peek(0)
@@ -115,25 +110,88 @@ func (parser *Parser) ParseArguments() []Variable {
 			fmt.Printf("finished ? %s\n", *finished)
 			if finished != nil && *finished == ")" {
 				break
+			} else if finished != nil && *finished == "," {
+				parser.index += 1
 			}
 
 			key := parser.Peek(0)
 			terminator := parser.Peek(1)
-			value := parser.Peek(2)
+			parser.index += 2
+			var value *string
+
+			isAlpha := regexp.MustCompile(`^[A-Za-z]+$`).MatchString
+			isNumeric := regexp.MustCompile(`^0|[1-9]\d*$`).MatchString
+			if isAlpha(*parser.Peek(0)) || isNumeric(*parser.Peek(0)) {
+				value = parser.Peek(0)
+			} else if strings.HasPrefix(*parser.Peek(0), "$") {
+				value = parser.Peek(0)
+			} else {
+				fmt.Println(*parser.Peek(0))
+				value = parser.ParseArray()
+				if value == nil {
+					value = parser.ParseDict()
+				}
+			}
+			fmt.Println("current", *parser.Peek(0))
+			parser.index += 1
+
 			if key != nil && terminator != nil && value != nil {
 				variables = append(variables, Variable{
 					key:   *key,
 					value: *value,
 				})
 				// push
-				parser.index += 3
 			} else {
+				fmt.Println(*key)
 				panic("Invalid arguments")
 			}
 		}
 		parser.index += 1
 	}
 	return variables
+}
+
+func (parser *Parser) ParseArray() *string {
+	peekArguments := parser.Peek(0)
+	if peekArguments != nil && *peekArguments == "[" {
+		parser.index += 1
+		value := ""
+		for true {
+			finished := parser.Peek(0)
+			if finished != nil && *finished == "]" {
+				break
+			} else if finished != nil && *finished == "," {
+				parser.index += 1
+			}
+			parser.index += 1
+		}
+		return &value
+	}
+	return nil
+}
+
+func (parser *Parser) ParseDict() *string {
+	peekArguments := parser.Peek(0)
+	if peekArguments != nil && *peekArguments == "{" {
+		value := ""
+		parser.index += 1
+		for true {
+			finished := parser.Peek(0)
+			if finished != nil && *finished == "}" {
+				break
+			} else if finished != nil && *finished == "," {
+				parser.index += 1
+			}
+			parser.index += 1
+		}
+		return &value
+	}
+	return nil
+}
+
+func (parser *Parser) ParseLiteral() {
+	parser.Peek(0)
+	parser.index += 1
 }
 
 func (parser *Parser) ParseAlias() *string {

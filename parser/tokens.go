@@ -9,7 +9,7 @@ func GetTokens(schema string) []string {
 		tokens:       []string{},
 		currentToken: "",
 	}
-	terminators := []string{"(", ")", "{", "}", ":"}
+	terminators := []string{"(", ")", "{", "}", ":", "[", "]", ","}
 	index := 0
 
 	for index < len(schema) {
