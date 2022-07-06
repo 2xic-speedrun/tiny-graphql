@@ -71,7 +71,6 @@ func (parser *Parser) ParseObjectAndFields(results ObjectAndFields, alias *strin
 			//fmt.Printf("object %s, current token %s\n", *object, parser.Tokens[parser.index])
 			results.objects = append(results.objects, parser.ParseObjectAndFields(*object, alias))
 		}
-
 	}
 
 	return results
@@ -82,6 +81,7 @@ func (parser *Parser) ParseObject() *ObjectAndFields {
 	if peeked != nil && (*peeked == "(" || *peeked == "{") {
 		name := parser.Tokens[parser.index]
 		results := getEmptyObject(name)
+
 		parser.index += 1
 		results.variables = parser.ParseArguments()
 		parser.index += 1
@@ -106,6 +106,9 @@ func (parser *Parser) ParseArguments() []Variable {
 			value = parser.Peek(0)
 			parser.index++
 		} else if strings.HasPrefix(*parser.Peek(0), "$") {
+			value = parser.Peek(0)
+			parser.index++
+		} else if strings.HasPrefix(*parser.Peek(0), "\"") {
 			value = parser.Peek(0)
 			parser.index++
 		} else {

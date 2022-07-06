@@ -134,3 +134,18 @@ func TestParserShouldHandleDict(t *testing.T) {
 	assert.Equal(t, schema.objects[0].fields[0].name, "name", "Wrong field name")
 	assert.Equal(t, len(schema.objects[0].variables), 1, "Wrong variable length")
 }
+
+func TestParserShouldHandleString(t *testing.T) {
+	schema := Parse(`
+	  {
+		user(name: "mark"){
+		  name
+		}
+	  }	  
+	`)
+
+	assert.Equal(t, schema.name, "root", "Wrong schema name")
+	assert.Equal(t, schema.objects[0].name, "user", "Wrong object name")
+	assert.Equal(t, schema.objects[0].fields[0].name, "name", "Wrong field name")
+	assert.Equal(t, len(schema.objects[0].variables), 1, "Wrong variable length")
+}

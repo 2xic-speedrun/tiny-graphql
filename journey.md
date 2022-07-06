@@ -13,10 +13,13 @@ Plan : More or less complete the parser. Missing features are for instance
 - Schema does not need to have query specified, or name.
 - Input variables for schema ($variables)
 
+
+### Todo left from today
+Will implement the following (hopefully) tomorrow.
 - Fragments
   - Type conditions
   - ... operator
-- Object + Field order
+- Object + Field order (currently this is not tracked)
 - @include operator
 - @skip operator
-- 
+
