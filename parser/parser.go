@@ -109,13 +109,12 @@ func (parser *Parser) ParseArguments() []Variable {
 			value = parser.Peek(0)
 			parser.index++
 		} else {
-			fmt.Println(*parser.Peek(0))
 			value = parser.ParseArray()
 			if value == nil {
 				value = parser.ParseDict()
+				fmt.Println("Found dict")
 			}
 		}
-		fmt.Println("current", *parser.Peek(0))
 
 		if key != nil && terminator != nil && value != nil {
 			variables = append(variables, Variable{
@@ -125,42 +124,60 @@ func (parser *Parser) ParseArguments() []Variable {
 		} else {
 			panic("Invalid arguments")
 		}
-	})
+	},
+		parser.DictAndArrayTerminatorFunction)
+
 	return variables
 }
 
 func (parser *Parser) ParseArray() *string {
-	return parser.ParseScope("[", "]", func() {
-		parser.Read()
-	})
+	results := ""
+	parser.ParseScope("[", "]", func() {
+		results += *parser.Read()
+	},
+		parser.DictAndArrayTerminatorFunction)
+	if len(results) == 0 {
+		return nil
+	}
+	return &results
 }
 
 func (parser *Parser) ParseDict() *string {
-	// {key, value (? , key : value ...) }
-	return parser.ParseScope("{", "}", func() {
-		parser.Read()
-	})
-	return nil
+	results := ""
+	parser.ParseScope("{", "}", func() {
+		results += *parser.Read()
+	},
+		parser.DictAndArrayTerminatorFunction)
+	if len(results) == 0 {
+		return nil
+	}
+	return &results
 }
 
-func (parser *Parser) ParseScope(init string, terminator string, callback func()) *string {
+func (parser *Parser) ParseScope(init string, terminator string, callback func(), terminatorFunction func(terminator string) bool) bool {
 	peekArguments := parser.Peek(0)
 	if peekArguments != nil && *peekArguments == init {
-		value := ""
 		parser.index += 1
 		for true {
-			finished := parser.Peek(0)
-			if finished != nil && *finished == terminator {
+			if terminatorFunction(terminator) {
 				break
-			} else if finished != nil && *finished == "," {
-				parser.index += 1
 			}
 			callback()
 		}
 		parser.index += 1
-		return &value
+		return true
 	}
-	return nil
+	return false
+}
+
+func (parser *Parser) DictAndArrayTerminatorFunction(terminator string) bool {
+	finished := parser.Peek(0)
+	if finished != nil && *finished == terminator {
+		return true
+	} else if finished != nil && *finished == "," {
+		parser.index += 1
+	}
+	return false
 }
 
 func (parser *Parser) ParseLiteral() {
@@ -174,14 +191,13 @@ func (parser *Parser) ParseAlias() *string {
 	if peekedToken != nil && *peekedToken == ":" {
 		results := parser.Read()
 		parser.index += 1
-		return &results
+		return results
 	}
 	return nil
 }
 
 func (parser *Parser) ParseField() *string {
-	results := parser.Read()
-	return &results
+	return parser.Read()
 }
 
 func (parser *Parser) Peek(length int) *string {
@@ -191,8 +207,8 @@ func (parser *Parser) Peek(length int) *string {
 	return nil
 }
 
-func (parser *Parser) Read() string {
-	results := parser.Tokens[parser.index]
+func (parser *Parser) Read() *string {
+	results := parser.Peek(0)
 	parser.index++
 	return results
 }
