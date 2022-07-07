@@ -178,7 +178,6 @@ func TestParserIncludeOperator(t *testing.T) {
 	`)
 
 	assert.Equal(t, schema.name, "root", "Wrong schema name")
-	fmt.Println(schema)
 	assert.Equal(t, schema.objects[0].conditional.variant, "include", "Wrong conditional name")
 	assert.Equal(t, len(schema.objects[0].fragments), 1, "Wrong fragment name")
 }
@@ -193,7 +192,23 @@ func TestParserSkipOperator(t *testing.T) {
 	`)
 
 	assert.Equal(t, schema.name, "root", "Wrong schema name")
-	fmt.Println(schema)
 	assert.Equal(t, schema.objects[0].conditional.variant, "skip", "Wrong conditional name")
 	assert.Equal(t, len(schema.objects[0].fragments), 1, "Wrong fragment name")
+}
+
+func TestParserOnFragment(t *testing.T) {
+	schema := Parse(`
+	  {
+		user(name: "mark") {
+		  ... on Admin {
+			...SimpleUser
+		  }
+		}
+	  }
+	`)
+
+	assert.Equal(t, schema.name, "root", "Wrong schema name")
+	assert.Equal(t, len(schema.objects[0].fragments[0].child.fragments), 1, "Wrong schema name")
+	assert.Equal(t, schema.objects[0].fragments[0].object, "Admin", "Wrong schema name")
+	assert.Equal(t, schema.objects[0].fragments[0].child.fragments[0].name, "SimpleUser", "Wrong schema name")
 }

@@ -33,8 +33,8 @@ func (parser *Parser) ParseSchema() Schema {
 			variables: variables,
 		}
 	} else if parser.Tokens[parser.index] == "{" {
-		objects_and_fields := parser.ParseObjectAndFields(getEmptyObject("root"), nil)
 		parser.index += 1
+		objects_and_fields := parser.ParseObjectAndFields(getEmptyObject("root"), nil)
 		return Schema{
 			name:    "root",
 			objects: objects_and_fields.objects,
@@ -47,10 +47,16 @@ func (parser *Parser) ParseSchema() Schema {
 
 func (parser *Parser) ParseObjectAndFields(results ObjectAndFields, alias *string) ObjectAndFields {
 	results.alias = alias
+	if *parser.Peek(0) == "{" {
+		panic("error in parser")
+	}
 	for parser.index < len(parser.Tokens) {
 		peekToken := parser.Peek(0)
 		if peekToken != nil && *peekToken == "}" {
 			break
+		}
+		if *parser.Peek(0) == "{" {
+			panic("error in parser")
 		}
 		alias := parser.ParseAlias()
 		fragment := parser.ParseFragmentReference()
@@ -229,6 +235,7 @@ func (parser *Parser) ParseFragment() *Fragment {
 	if parser.isNextToken("fragment") {
 		fragmentName := parser.Read()
 		if parser.isNextToken("on") {
+			fmt.Println("peek ?", parser.Peek(0))
 			return &Fragment{
 				name: *fragmentName,
 				on:   *parser.Read(),
@@ -249,9 +256,22 @@ func (parser *Parser) ParseFragment() *Fragment {
 	return nil
 }
 
-func (parser *Parser) ParseFragmentReference() *string {
+func (parser *Parser) ParseFragmentReference() *FragmentReference {
 	if parser.isNextTokenSequence([]string{".", ".", "."}) {
-		return parser.Read()
+		if parser.isNextToken("on") {
+			object := *parser.Read()
+			parser.index += 1
+			return &FragmentReference{
+				object: object,
+				child: parser.ParseObjectAndFields(
+					getEmptyObject(""),
+					nil,
+				),
+			}
+		}
+		return &FragmentReference{
+			name: *parser.Read(),
+		}
 	}
 	return nil
 }
@@ -289,7 +309,7 @@ func (parser *Parser) isNextTokenSequence(sequence []string) bool {
 			return false
 		}
 	}
-	parser.index += len(sequence) - 1
+	parser.index += len(sequence)
 	return true
 }
 
@@ -326,7 +346,7 @@ type ObjectAndFields struct {
 	variables   []Variable
 	objects     []ObjectAndFields
 	fields      []Field
-	fragments   []string
+	fragments   []FragmentReference
 	conditional Conditional
 }
 
@@ -339,6 +359,12 @@ type Fragment struct {
 	name   string
 	on     string
 	fields ObjectAndFields
+}
+
+type FragmentReference struct {
+	object string
+	name   string
+	child  ObjectAndFields
 }
 
 type Variable struct {
