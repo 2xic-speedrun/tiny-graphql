@@ -23,3 +23,6 @@ Will implement the following (hopefully) tomorrow.
 - @include operator
 - @skip operator
 
+## Day 3
+Plan : Complete the todo from yesterday, need to fix the way some tokens are constructed (i.e inside strings we should ignore terminators).
+

@@ -53,8 +53,13 @@ func (parser *Parser) ParseObjectAndFields(results ObjectAndFields, alias *strin
 			break
 		}
 		alias := parser.ParseAlias()
+		fragment := parser.ParseFragmentReference()
 		object := parser.ParseObject()
 		fmt.Printf("%d - %s (%d)\n", parser.index, parser.Tokens[parser.index], len(parser.Tokens[parser.index]))
+
+		if fragment != nil {
+			results.fragments = append(results.fragments, *fragment)
+		}
 
 		if object == nil {
 			field := parser.ParseField()
@@ -84,6 +89,10 @@ func (parser *Parser) ParseObject() *ObjectAndFields {
 
 		parser.index += 1
 		results.variables = parser.ParseArguments()
+		condition := parser.ParseConditional()
+		if condition != nil {
+			results.conditional = *condition
+		}
 		parser.index += 1
 
 		return &results
@@ -131,6 +140,23 @@ func (parser *Parser) ParseArguments() []Variable {
 		parser.DictAndArrayTerminatorFunction)
 
 	return variables
+}
+
+func (parser *Parser) ParseConditional() *Conditional {
+	if parser.isNextToken("@") {
+		if parser.isNextToken("skip") {
+			return &Conditional{
+				variant:   "skip",
+				variables: parser.ParseArguments(),
+			}
+		} else if parser.isNextToken("include") {
+			return &Conditional{
+				variant:   "include",
+				variables: parser.ParseArguments(),
+			}
+		}
+	}
+	return nil
 }
 
 func (parser *Parser) ParseArray() *string {
@@ -199,6 +225,37 @@ func (parser *Parser) ParseAlias() *string {
 	return nil
 }
 
+func (parser *Parser) ParseFragment() *Fragment {
+	if parser.isNextToken("fragment") {
+		fragmentName := parser.Read()
+		if parser.isNextToken("on") {
+			return &Fragment{
+				name: *fragmentName,
+				on:   *parser.Read(),
+				fields: parser.ParseObjectAndFields(
+					ObjectAndFields{
+						name:      "fragment",
+						alias:     nil,
+						objects:   []ObjectAndFields{},
+						fields:    []Field{},
+						variables: []Variable{},
+					},
+					nil,
+				),
+			}
+		}
+	}
+
+	return nil
+}
+
+func (parser *Parser) ParseFragmentReference() *string {
+	if parser.isNextTokenSequence([]string{".", ".", "."}) {
+		return parser.Read()
+	}
+	return nil
+}
+
 func (parser *Parser) ParseField() *string {
 	return parser.Read()
 }
@@ -214,6 +271,26 @@ func (parser *Parser) Read() *string {
 	results := parser.Peek(0)
 	parser.index++
 	return results
+}
+
+func (parser *Parser) isNextToken(expected string) bool {
+	value := parser.Peek(0)
+	if value != nil && *value == expected {
+		parser.index += 1
+		return true
+	}
+	return false
+}
+
+func (parser *Parser) isNextTokenSequence(sequence []string) bool {
+	for index, item := range sequence {
+		reference := parser.Peek(index)
+		if reference == nil || *reference != item {
+			return false
+		}
+	}
+	parser.index += len(sequence) - 1
+	return true
 }
 
 func getEmptyObject(name string) ObjectAndFields {
@@ -244,11 +321,13 @@ type Parser struct {
 }
 
 type ObjectAndFields struct {
-	name      string
-	alias     *string
-	variables []Variable
-	objects   []ObjectAndFields
-	fields    []Field
+	name        string
+	alias       *string
+	variables   []Variable
+	objects     []ObjectAndFields
+	fields      []Field
+	fragments   []string
+	conditional Conditional
 }
 
 type Field struct {
@@ -256,7 +335,18 @@ type Field struct {
 	alias *string
 }
 
+type Fragment struct {
+	name   string
+	on     string
+	fields ObjectAndFields
+}
+
 type Variable struct {
 	key   string
 	value string
+}
+
+type Conditional struct {
+	variant   string
+	variables []Variable
 }

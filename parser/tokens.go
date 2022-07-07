@@ -9,22 +9,22 @@ func GetTokens(schema string) []string {
 		tokens:       []string{},
 		currentToken: "",
 	}
-	terminators := []string{"(", ")", "{", "}", ":", "[", "]", ","}
+	terminators := []string{"(", ")", "{", "}", ":", "[", "]", ",", "@", "."}
 	index := 0
 
 	for index < len(schema) {
 		char := string(schema[index])
 		if char == "#" {
-			tokens.addToken(tokens.currentToken)
+			tokens.addTokenAndClearCurrentToken(tokens.currentToken)
 			for index < len(schema) && string(schema[index]) != "\n" {
 				index++
 			}
 		} else if contains(terminators, char) {
-			tokens.addToken(tokens.currentToken)
-			tokens.addToken(char)
+			tokens.addTokenAndClearCurrentToken(tokens.currentToken)
+			tokens.addTokenAndClearCurrentToken(char)
 			index++
 		} else if len(strings.TrimSpace(char)) == 0 {
-			tokens.addToken(tokens.currentToken)
+			tokens.addTokenAndClearCurrentToken(tokens.currentToken)
 			index++
 		} else {
 			tokens.currentToken += char
@@ -43,7 +43,7 @@ func contains(list []string, a string) bool {
 	return false
 }
 
-func (tokenParser *TokensParser) addToken(token string) {
+func (tokenParser *TokensParser) addTokenAndClearCurrentToken(token string) {
 	if 0 < len(token) {
 		tokenParser.tokens = append(tokenParser.tokens, token)
 	}

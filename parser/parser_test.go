@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -148,4 +149,51 @@ func TestParserShouldHandleString(t *testing.T) {
 	assert.Equal(t, schema.objects[0].name, "user", "Wrong object name")
 	assert.Equal(t, schema.objects[0].fields[0].name, "name", "Wrong field name")
 	assert.Equal(t, len(schema.objects[0].variables), 1, "Wrong variable length")
+}
+
+func TestParserShouldHandleFragments(t *testing.T) {
+	schema := Parse(`
+	  {
+		user(name: "mark"){
+		  ...SimpleUser
+		}
+	  }
+
+	  fragment SimpleUser on User {
+		name
+	  }
+	`)
+
+	assert.Equal(t, schema.name, "root", "Wrong schema name")
+	assert.Equal(t, len(schema.objects[0].fragments), 1, "Wrong object name")
+}
+
+func TestParserIncludeOperator(t *testing.T) {
+	schema := Parse(`
+	  {
+		user(name: "mark") @include(if: true){
+		  ...SimpleUser
+		}
+	  }
+	`)
+
+	assert.Equal(t, schema.name, "root", "Wrong schema name")
+	fmt.Println(schema)
+	assert.Equal(t, schema.objects[0].conditional.variant, "include", "Wrong conditional name")
+	assert.Equal(t, len(schema.objects[0].fragments), 1, "Wrong fragment name")
+}
+
+func TestParserSkipOperator(t *testing.T) {
+	schema := Parse(`
+	  {
+		user(name: "mark") @skip(if: true){
+		  ...SimpleUser
+		}
+	  }
+	`)
+
+	assert.Equal(t, schema.name, "root", "Wrong schema name")
+	fmt.Println(schema)
+	assert.Equal(t, schema.objects[0].conditional.variant, "skip", "Wrong conditional name")
+	assert.Equal(t, len(schema.objects[0].fragments), 1, "Wrong fragment name")
 }
