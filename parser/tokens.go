@@ -19,6 +19,20 @@ func GetTokens(schema string) []string {
 			for index < len(schema) && string(schema[index]) != "\n" {
 				index++
 			}
+		} else if char == "\"" {
+			index += 1
+			tokens.addTokenAndClearCurrentToken(tokens.currentToken)
+			for index < len(schema) {
+				current := string(schema[index])
+				if current != "\"" {
+					tokens.currentToken += string(schema[index])
+					index++
+				} else {
+					index++
+					break
+				}
+			}
+			tokens.addTokenAndClearCurrentToken(tokens.currentToken)
 		} else if contains(terminators, char) {
 			tokens.addTokenAndClearCurrentToken(tokens.currentToken)
 			tokens.addTokenAndClearCurrentToken(char)
@@ -31,6 +45,8 @@ func GetTokens(schema string) []string {
 			index++
 		}
 	}
+	tokens.addTokenAndClearCurrentToken(tokens.currentToken)
+
 	return tokens.tokens
 }
 
