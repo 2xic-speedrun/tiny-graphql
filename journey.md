@@ -26,3 +26,33 @@ Will implement the following (hopefully) tomorrow.
 ## Day 3
 Plan : Complete the todo from yesterday, need to fix the way some tokens are constructed (i.e inside strings we should ignore terminators).
 
+----
+
+Have now more or less written a functional parser. Still some minor things to fix like the types of array and dict.
+
+The main challenge now is how to represent this all. Should it all be a object like it is today ? 
+
+No, I think the correct way is to do something like an interface.
+
+Fragments has to be calculated on the server side, so we cannot compress this.
+
+The variants we have are 
+- Object -> can be conditional
+- Field -> string -> can be conditional
+- Fragments -> can be conditional
+- 
+
+
+```
+type BaseElement interface {
+  name string
+}
+```
+
+Okay, maybe we should create a basic resolver object first to get a feeling for how the interface should be ? 
+
+Yeah, let's try that first.
+
+
+
+

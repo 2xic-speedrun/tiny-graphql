@@ -28,7 +28,6 @@ func GetTokens(schema string) []string {
 					tokens.currentToken += string(schema[index])
 					index++
 				} else {
-					index++
 					break
 				}
 			}
@@ -36,14 +35,12 @@ func GetTokens(schema string) []string {
 		} else if contains(terminators, char) {
 			tokens.addTokenAndClearCurrentToken(tokens.currentToken)
 			tokens.addTokenAndClearCurrentToken(char)
-			index++
 		} else if len(strings.TrimSpace(char)) == 0 {
 			tokens.addTokenAndClearCurrentToken(tokens.currentToken)
-			index++
 		} else {
 			tokens.currentToken += char
-			index++
 		}
+		index++
 	}
 	tokens.addTokenAndClearCurrentToken(tokens.currentToken)
 
