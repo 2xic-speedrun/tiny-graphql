@@ -53,6 +53,5 @@ Okay, maybe we should create a basic resolver object first to get a feeling for 
 
 Yeah, let's try that first.
 
-
-
+So I will do that tomorrow, I think :)
 

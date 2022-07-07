@@ -2,7 +2,10 @@ module tiny-graphql
 
 go 1.18
 
-require github.com/2xic-speedrun/tiny-graphql/parser v1.0.0
+require (
+	github.com/2xic-speedrun/tiny-graphql/parser v1.0.0
+	github.com/2xic-speedrun/tiny-graphql/resolver v1.0.0
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -12,3 +15,4 @@ require (
 )
 
 replace github.com/2xic-speedrun/tiny-graphql/parser => ./parser
+replace github.com/2xic-speedrun/tiny-graphql/resolver => ./resolver
