@@ -9,7 +9,6 @@ import (
 func Parse(schema string) Schema {
 	tokens := GetTokens(schema)
 
-	fmt.Println(tokens)
 	parser := Parser{
 		Tokens: tokens,
 		index:  0,
@@ -36,7 +35,6 @@ func (parser *Parser) ParseSchema() Schema {
 	} else if parser.Tokens[parser.index] == "{" {
 		parser.index += 1
 		objects_and_fields := parser.ParseObjectAndFields(getEmptyObject("root"), nil)
-		//	fmt.Println(objects_and_fields.Fields[0])
 		return Schema{
 			Name:    "root",
 			Objects: objects_and_fields.objects,
@@ -133,7 +131,6 @@ func (parser *Parser) ParseArguments() []Variable {
 			value = parser.ParseArray()
 			if value == nil {
 				value = parser.ParseDict()
-				fmt.Println("Found dict")
 			}
 		}
 
@@ -238,7 +235,6 @@ func (parser *Parser) ParseFragment() *Fragment {
 	if parser.isNextToken("fragment") {
 		fragmentName := parser.Read()
 		if parser.isNextToken("on") {
-			fmt.Println("peek ?", parser.Peek(0))
 			return &Fragment{
 				name: *fragmentName,
 				on:   *parser.Read(),

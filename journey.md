@@ -55,3 +55,25 @@ Yeah, let's try that first.
 
 So I will do that tomorrow, I think :)
 
+## Day 4
+Most pieces are now in place, and I added some basic mapping of the resolvers to the request schema.
+
+Tomorrow I will refactor the old array based schema generator where fields, objects, etc were separated and instead do it in a way similar to how it was solved in the schema builder.
+
+Main reason for doing this is to make the code a lot cleaner. You can traverse both schemas in the same way, and it makes it a lot easier to know if you have defined some objects twice (ambiguous).
+
+Goal for tomorrow
+- Refactor the parser/schema.go
+- Add for recursive objects and resolve them 
+```
+query test {
+  build {
+    git {
+      hash # return a hash.
+    }
+  }
+}
+```
+- Add test for key / value order of response
+- Add support object arguments. 
+- 
