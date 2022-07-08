@@ -27,17 +27,20 @@ func (parser *Parser) ParseSchema() Schema {
 		objects_and_fields := parser.ParseObjectAndFields(getEmptyObject(name), nil)
 
 		return Schema{
-			name:      name,
-			objects:   objects_and_fields.objects,
+			Name:      name,
+			Objects:   objects_and_fields.objects,
+			Fields:    objects_and_fields.Fields,
 			variant:   parser.Tokens[parser.index],
-			variables: variables,
+			Variables: variables,
 		}
 	} else if parser.Tokens[parser.index] == "{" {
 		parser.index += 1
 		objects_and_fields := parser.ParseObjectAndFields(getEmptyObject("root"), nil)
+		//	fmt.Println(objects_and_fields.Fields[0])
 		return Schema{
-			name:    "root",
-			objects: objects_and_fields.objects,
+			Name:    "root",
+			Objects: objects_and_fields.objects,
+			Fields:  objects_and_fields.Fields,
 			variant: "query",
 		}
 	} else {
@@ -46,7 +49,7 @@ func (parser *Parser) ParseSchema() Schema {
 }
 
 func (parser *Parser) ParseObjectAndFields(results ObjectAndFields, alias *string) ObjectAndFields {
-	results.alias = alias
+	results.Alias = alias
 	if *parser.Peek(0) == "{" {
 		panic("error in parser")
 	}
@@ -73,8 +76,8 @@ func (parser *Parser) ParseObjectAndFields(results ObjectAndFields, alias *strin
 				panic("Something is wrong")
 			} else {
 				fmt.Printf("Found field %s\n", *field)
-				results.fields = append(results.fields, Field{
-					name:  *field,
+				results.Fields = append(results.Fields, Field{
+					Name:  *field,
 					alias: alias,
 				})
 			}
@@ -241,10 +244,10 @@ func (parser *Parser) ParseFragment() *Fragment {
 				on:   *parser.Read(),
 				fields: parser.ParseObjectAndFields(
 					ObjectAndFields{
-						name:      "fragment",
-						alias:     nil,
+						Name:      "fragment",
+						Alias:     nil,
 						objects:   []ObjectAndFields{},
-						fields:    []Field{},
+						Fields:    []Field{},
 						variables: []Variable{},
 					},
 					nil,
@@ -282,18 +285,19 @@ func (parser *Parser) ParseField() *string {
 
 func getEmptyObject(name string) ObjectAndFields {
 	return ObjectAndFields{
-		name:    name,
+		Name:    name,
 		objects: []ObjectAndFields{},
-		fields:  []Field{},
-		alias:   nil,
+		Fields:  []Field{},
+		Alias:   nil,
 	}
 }
 
 type Schema struct {
-	name      string
+	Name      string
 	variant   string
-	variables []Variable
-	objects   []ObjectAndFields
+	Variables []Variable
+	Objects   []ObjectAndFields
+	Fields    []Field
 }
 
 type Object struct {
@@ -303,17 +307,17 @@ type Object struct {
 }
 
 type ObjectAndFields struct {
-	name        string
-	alias       *string
+	Name        string
+	Alias       *string
 	variables   []Variable
 	objects     []ObjectAndFields
-	fields      []Field
+	Fields      []Field
 	fragments   []FragmentReference
 	conditional Conditional
 }
 
 type Field struct {
-	name  string
+	Name  string
 	alias *string
 }
 
