@@ -2,6 +2,8 @@ package parser
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 )
 
 func Parse(schema string) Schema {
@@ -20,41 +22,31 @@ func (parser *Parser) parseSchema() Schema {
 		name := parser.Tokens[parser.index+1]
 		parser.index += 2
 		// parser arguments
-		//	variables := parser.ParseArguments()
+		variables := parser.ParseArguments()
 		parser.index += 1
-		//	objects_and_fields := parser.ParseObjectAndFields(getEmptyObject(name), nil)
 
 		schema := Schema{
 			Name:      name,
 			variant:   parser.Tokens[parser.index],
-			fields:    data,
+			Fields:    data,
 			reference: &data,
 			parser:    *parser,
+			Variables: variables,
 		}
 		schema.ParseObjectAndFields()
 		return schema
 	} else if parser.Tokens[parser.index] == "{" {
 		parser.index += 1
-		fmt.Println("HELLLLOOO")
+
 		schema := Schema{
-			Name: "root",
-			/*			Objects:   objects_and_fields.objects,
-						Fields:    objects_and_fields.Fields,*/
+			Name:      "root",
 			variant:   parser.Tokens[parser.index],
-			fields:    data,
+			Fields:    data,
 			reference: &data,
 			parser:    *parser,
-			//			Variables: variables,
 		}
 		schema.ParseObjectAndFields()
 		return schema
-		/*
-			return Schema{
-				Name:    "root",
-				Objects: objects_and_fields.objects,
-				Fields:  objects_and_fields.Fields,
-				variant: "query",
-			}*/
 	} else {
 		panic("Invalid schema")
 	}
@@ -87,8 +79,8 @@ func (schema *Schema) ParseObjectAndFields() {
 			old_reference := schema.reference
 			current_map[object.Name()] = object
 
-			current_map[object.Name()].(*Object).fields = make(map[string]interface{})
-			object_field_reference := current_map[object.Name()].(*Object).fields
+			current_map[object.Name()].(*Object).Fields = make(map[string]interface{})
+			object_field_reference := current_map[object.Name()].(*Object).Fields
 			schema.reference = &object_field_reference
 			schema.ParseObjectAndFields()
 
@@ -156,7 +148,7 @@ func (parser *Parser) ParseObject() *Object {
 
 		parser.index += 1
 		//results.variables =
-		parser.ParseArguments()
+		variables := parser.ParseArguments()
 		/*
 			condition := parser.ParseConditional()
 			if condition != nil {
@@ -166,7 +158,8 @@ func (parser *Parser) ParseObject() *Object {
 		parser.index += 1
 
 		return &Object{
-			name: name,
+			name:      name,
+			Variables: variables,
 		}
 	} else {
 		return nil
@@ -176,39 +169,37 @@ func (parser *Parser) ParseObject() *Object {
 func (parser *Parser) ParseArguments() []Variable {
 	variables := []Variable{}
 	parser.ParseScope("(", ")", func() {
-		parser.index++
-		/*
-			key := parser.Peek(0)
-			terminator := parser.Peek(1)
-			parser.index += 2
-			var value *string
+		key := parser.Peek(0)
+		terminator := parser.Peek(1)
+		parser.index += 2
+		var value *string
 
-			isAlpha := regexp.MustCompile(`^[A-Za-z]+$`).MatchString
-			isNumeric := regexp.MustCompile(`^0|[1-9]\d*$`).MatchString
-			if isAlpha(*parser.Peek(0)) || isNumeric(*parser.Peek(0)) {
-				value = parser.Peek(0)
-				parser.index++
-			} else if strings.HasPrefix(*parser.Peek(0), "$") {
-				value = parser.Peek(0)
-				parser.index++
-			} else if strings.HasPrefix(*parser.Peek(0), "\"") {
-				value = parser.Peek(0)
-				parser.index++
-			} else {
-				value = parser.ParseArray()
-				if value == nil {
-					value = parser.ParseDict()
-				}
+		isAlpha := regexp.MustCompile(`^[A-Za-z]+$`).MatchString
+		isNumeric := regexp.MustCompile(`^0|[1-9]\d*$`).MatchString
+		if isAlpha(*parser.Peek(0)) || isNumeric(*parser.Peek(0)) {
+			value = parser.Peek(0)
+			parser.index++
+		} else if strings.HasPrefix(*parser.Peek(0), "$") {
+			value = parser.Peek(0)
+			parser.index++
+		} else if strings.HasPrefix(*parser.Peek(0), "\"") {
+			value = parser.Peek(0)
+			parser.index++
+		} else {
+			value = parser.ParseArray()
+			if value == nil {
+				value = parser.ParseDict()
 			}
+		}
 
-			if key != nil && terminator != nil && value != nil {
-				variables = append(variables, Variable{
-					key:   *key,
-					value: *value,
-				})
-			} else {
-				panic("Invalid arguments")
-			}*/
+		if key != nil && terminator != nil && value != nil {
+			variables = append(variables, Variable{
+				key:   *key,
+				value: *value,
+			})
+		} else {
+			panic("Invalid arguments")
+		}
 	},
 		parser.DictAndArrayTerminatorFunction)
 
@@ -223,25 +214,6 @@ func (parser *Parser) DictAndArrayTerminatorFunction(terminator string) bool {
 		parser.index += 1
 	}
 	return false
-}
-
-/*
-
-func (parser *Parser) ParseConditional() *Conditional {
-	if parser.isNextToken("@") {
-		if parser.isNextToken("skip") {
-			return &Conditional{
-				variant:   "skip",
-				variables: parser.ParseArguments(),
-			}
-		} else if parser.isNextToken("include") {
-			return &Conditional{
-				variant:   "include",
-				variables: parser.ParseArguments(),
-			}
-		}
-	}
-	return nil
 }
 
 func (parser *Parser) ParseArray() *string {
@@ -266,6 +238,25 @@ func (parser *Parser) ParseDict() *string {
 		return nil
 	}
 	return &results
+}
+
+/*
+
+func (parser *Parser) ParseConditional() *Conditional {
+	if parser.isNextToken("@") {
+		if parser.isNextToken("skip") {
+			return &Conditional{
+				variant:   "skip",
+				variables: parser.ParseArguments(),
+			}
+		} else if parser.isNextToken("include") {
+			return &Conditional{
+				variant:   "include",
+				variables: parser.ParseArguments(),
+			}
+		}
+	}
+	return nil
 }
 
 
@@ -334,15 +325,13 @@ const (
 )
 
 type Schema struct {
-	Name    string
-	variant string
-	fields  map[string]interface{}
+	Name      string
+	variant   string
+	Fields    map[string]interface{}
+	Variables []Variable
 
 	reference *map[string]interface{}
 	parser    Parser
-	/*Variables []Variable
-	Objects   []ObjectAndFields
-	Fields    []Field*/
 }
 
 type Fields interface {
@@ -352,9 +341,10 @@ type Fields interface {
 }
 
 type Object struct {
-	name   string
-	alias  *string
-	fields map[string]interface{}
+	name      string
+	alias     *string
+	Fields    map[string]interface{}
+	Variables []Variable
 }
 
 func (object *Object) Name() string {

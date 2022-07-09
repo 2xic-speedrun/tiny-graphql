@@ -21,40 +21,53 @@ func (schema *ResolverSchema) Add_Object(name string) *Object {
 	return object
 }
 
-// Todo this has to be recursive.
 func (schema *ResolverSchema) Resolve(object parser.Schema) map[string]interface{} {
 	data := map[string]interface{}{}
-	/*
-		var reference *map[string]interface{}
-		reference = &data
+	//var reference *map[string]interface{}
+	schema.reference = &data
 
-		if 0 < len(object.Name) {
-			data[object.Name] = make(map[string]interface{})
-			newReference := data[object.Name].(map[string]interface{})
-			reference = &newReference
-		}
+	if 0 < len(object.Name) {
+		data[object.Name] = make(map[string]interface{})
+		newReference := data[object.Name].(map[string]interface{})
+		schema.reference = &newReference
+	}
 
-		for _, val := range object.Fields {
-			field := schema.resolve_field(val.Name)
-			if field == nil {
-				panic("invalid field")
-			}
-			value := (*field).Resolve(nil)
-			(*reference)[val.Name] = value
-		}
-		for _, val := range object.Objects {
-			(*reference)[val.Name] = make(map[string]interface{})
-			newReference := (*reference)[val.Name].(map[string]interface{})
-			reference = &newReference
-			object := schema.resolve_field(val.Name)
-
-			for _, field := range val.Fields {
-				field_value := (*object).Child()[field.Name].Resolve(nil)
-				(*reference)[field.Name] = field_value
-			}
-		}*/
+	schema.recursive_resolve(object.Fields)
 
 	return data
+}
+
+func (schema *ResolverSchema) recursive_resolve(object map[string]interface{}) {
+	for field_name, field := range object {
+		_, ok := field.(*parser.Object)
+		if ok {
+			object_field := field.(*parser.Object)
+			old_reference := schema.reference
+			(*schema.reference)[field_name] = make(map[string]interface{})
+			new_reference := (*schema.reference)[field_name].(map[string]interface{})
+			schema.reference = &new_reference
+
+			last_object_reference := schema.working_object
+
+			object := *schema.resolve_field(object_field.Name())
+			object_reference := (object.(*Object))
+			schema.working_object = object_reference
+
+			schema.recursive_resolve(object_field.Fields)
+
+			schema.working_object = last_object_reference
+
+			schema.reference = old_reference
+
+		} else {
+			field_value := schema.resolve_field(field.(*parser.Field).Name())
+			if field_value == nil {
+				panic("invalid field")
+			}
+			value := (*field_value).Resolve(nil)
+			(*schema.reference)[field_name] = value
+		}
+	}
 }
 
 const (
@@ -63,12 +76,19 @@ const (
 )
 
 func (schema *ResolverSchema) resolve_field(name string) *Resolvers {
-	value := schema.Resolvers[name]
-	return &value
+	if schema.working_object == nil {
+		value := schema.Resolvers[name]
+		return &value
+	} else {
+		value := schema.working_object.resolves[name]
+		return &value
+	}
 }
 
 type ResolverSchema struct {
-	Resolvers map[string]Resolvers
+	Resolvers      map[string]Resolvers
+	reference      *map[string]interface{}
+	working_object *Object
 }
 
 type Resolvers interface {

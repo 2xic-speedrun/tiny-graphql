@@ -14,8 +14,8 @@ func TestParseSingleField(t *testing.T) {
 	`)
 
 	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, schema.fields["build"].(Fields).Type(), 1, "Wrong field type ")
-	assert.Equal(t, schema.fields["build"].(Fields).Alias() == nil, true, "Wrong field alias")
+	assert.Equal(t, schema.Fields["build"].(Fields).Type(), 1, "Wrong field type ")
+	assert.Equal(t, schema.Fields["build"].(Fields).Alias() == nil, true, "Wrong field alias")
 }
 
 func TestParseSingleFieldAlias(t *testing.T) {
@@ -26,8 +26,8 @@ func TestParseSingleFieldAlias(t *testing.T) {
 	`)
 
 	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, schema.fields["build"].(Fields).Type(), 1, "Wrong field type ")
-	assert.Equal(t, *schema.fields["build"].(Fields).Alias(), "alias", "Wrong field alias ")
+	assert.Equal(t, schema.Fields["build"].(Fields).Type(), 1, "Wrong field type ")
+	assert.Equal(t, *schema.Fields["build"].(Fields).Alias(), "alias", "Wrong field alias ")
 }
 
 func TestParserName(t *testing.T) {
@@ -40,13 +40,29 @@ func TestParserName(t *testing.T) {
 	`)
 
 	assert.Equal(t, schema.Name, "GetUserName", "Wrong schema name")
-	assert.Equal(t, schema.Name, "GetUserName", "Wrong schema name")
-	assert.Equal(t, schema.fields["user"].(Fields).Type(), 2, "Wrong object name")
-	assert.Equal(t, (schema.fields["user"].(*Object)).Type(), 2, "Wrong object name")
-	assert.Equal(t, schema.fields["user"].(*Object).fields["name"].(Fields).Type(), 1, "Wrong object name")
+	assert.Equal(t, schema.Fields["user"].(Fields).Type(), 2, "Wrong object type")
+	assert.Equal(t, (schema.Fields["user"].(*Object)).Type(), 2, "Wrong object type")
+	assert.Equal(t, schema.Fields["user"].(*Object).Fields["name"].(Fields).Type(), 1, "Wrong object name")
 }
 
-/*
+func TestParserInputVariables(t *testing.T) {
+	schema := Parse(`
+	  query Test($id:int) {
+		aliasObject: user(id: $id) {
+		  alias: name
+		}
+	  }
+	`)
+
+	assert.Equal(t, schema.Name, "Test", "Wrong schema name")
+	assert.Equal(t, len(schema.Variables), 1, "Wrong variable length")
+	assert.Equal(t, schema.Variables[0].key, "$id", "Wrong variable name")
+	assert.Equal(t, schema.Variables[0].value, "int", "Wrong variable name")
+	assert.Equal(t, *schema.Fields["user"].(*Object).Alias(), "aliasObject", "Wrong object alias")
+	assert.Equal(t, *&schema.Fields["user"].(*Object).Variables[0].key, "id", "Wrong variable key")
+	assert.Equal(t, *&schema.Fields["user"].(*Object).Variables[0].value, "$id", "Wrong variable value")
+}
+
 func TestParserComment(t *testing.T) {
 	schema := Parse(`
 	  # This is a comment
@@ -59,8 +75,9 @@ func TestParserComment(t *testing.T) {
 	  # This is a comment
 	`)
 	assert.Equal(t, schema.Name, "GetUserName", "Wrong schema name")
-	assert.Equal(t, schema.Objects[0].Name, "user", "Wrong object name")
-	assert.Equal(t, schema.Objects[0].Fields[0].Name, "name", "Wrong field name")
+	assert.Equal(t, schema.Fields["user"].(Fields).Type(), 2, "Wrong field type")
+	assert.Equal(t, schema.Fields["user"].(Fields).Name(), "user", "Wrong object name")
+	assert.Equal(t, schema.Fields["user"].(*Object).Fields["name"].(Fields).Type(), 1, "Wrong field type")
 }
 
 func TestNestedObject(t *testing.T) {
@@ -77,9 +94,10 @@ func TestNestedObject(t *testing.T) {
 	  # This is a comment
 	`)
 	assert.Equal(t, schema.Name, "GetUserName", "Wrong schema name")
-	assert.Equal(t, schema.Objects[0].Name, "user", "Wrong object name")
-	assert.Equal(t, schema.Objects[0].objects[0].Name, "nameObject", "Wrong object name")
-	assert.Equal(t, schema.Objects[0].objects[0].Fields[0].Name, "nameField", "Wrong field name")
+	assert.Equal(t, schema.Fields["user"].(Fields).Type(), 2, "Wrong object type")
+	assert.Equal(t, schema.Fields["user"].(Fields).Name(), "user", "Wrong object name")
+	assert.Equal(t, schema.Fields["user"].(*Object).Fields["nameObject"].(Fields).Type(), 2, "Wrong object type")
+	assert.Equal(t, schema.Fields["user"].(*Object).Fields["nameObject"].(*Object).Fields["nameField"].(Fields).Type(), 1, "Wrong object type")
 }
 
 func TestParserNameOrQueryDoesNotNeedToBeSpecified(t *testing.T) {
@@ -91,9 +109,9 @@ func TestParserNameOrQueryDoesNotNeedToBeSpecified(t *testing.T) {
 	  }
 	`)
 
-	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, schema.Objects[0].Name, "user", "Wrong object name")
-	assert.Equal(t, schema.Objects[0].Fields[0].Name, "name", "Wrong field name")
+	assert.Equal(t, schema.Fields["user"].(Fields).Type(), 2, "Wrong object type")
+	assert.Equal(t, (schema.Fields["user"].(*Object)).Type(), 2, "Wrong object type")
+	assert.Equal(t, schema.Fields["user"].(*Object).Fields["name"].(Fields).Type(), 1, "Wrong object name")
 }
 
 func TestParserAlias(t *testing.T) {
@@ -105,31 +123,11 @@ func TestParserAlias(t *testing.T) {
 	  }
 	`)
 
-	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, nil != schema.Objects[0].Alias, true, "Wrong alias name")
-	assert.Equal(t, *schema.Objects[0].Alias, "aliasObject", "Wrong alias name")
-	assert.Equal(t, schema.Objects[0].Name, "user", "Wrong object name")
-	assert.Equal(t, schema.Objects[0].Fields[0].Name, "name", "Wrong field name")
-	assert.Equal(t, nil != schema.Objects[0].Fields[0].alias, true, "Wrong alias name")
-	assert.Equal(t, *schema.Objects[0].Fields[0].alias, "alias", "Wrong field name")
-}
-
-func TestParserInputVariables(t *testing.T) {
-	schema := Parse(`
-	  query Test($id:int) {
-		aliasObject: user(id: $id) {
-		  alias: name
-		}
-	  }
-	`)
-
-	assert.Equal(t, schema.Name, "Test", "Wrong schema name")
-	assert.Equal(t, len(schema.Variables), 1, "Wrong variable length")
-	assert.Equal(t, schema.Variables[0].key, "$id", "Wrong variable name")
-	assert.Equal(t, schema.Variables[0].value, "int", "Wrong variable name")
-
-	assert.Equal(t, schema.Objects[0].variables[0].key, "id", "Wrong variable name")
-	assert.Equal(t, schema.Objects[0].variables[0].value, "$id", "Wrong variable name")
+	assert.Equal(t, schema.Fields["user"].(Fields).Type(), 2, "Wrong object type")
+	assert.Equal(t, (schema.Fields["user"].(*Object)).Type(), 2, "Wrong object type")
+	assert.Equal(t, *(schema.Fields["user"].(*Object)).Alias(), "aliasObject", "Wrong object type")
+	assert.Equal(t, schema.Fields["user"].(*Object).Fields["name"].(Fields).Type(), 1, "Wrong object name")
+	assert.Equal(t, *schema.Fields["user"].(*Object).Fields["name"].(Fields).Alias(), "alias", "Wrong object name")
 }
 
 func TestParserShouldHandleArray(t *testing.T) {
@@ -141,10 +139,10 @@ func TestParserShouldHandleArray(t *testing.T) {
 	  }
 	`)
 
-	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, schema.Objects[0].Name, "user", "Wrong object name")
-	assert.Equal(t, schema.Objects[0].Fields[0].Name, "name", "Wrong field name")
-	assert.Equal(t, len(schema.Objects[0].variables), 1, "Wrong variable length")
+	assert.Equal(t, schema.Fields["user"].(Fields).Type(), 2, "Wrong object type")
+	assert.Equal(t, (schema.Fields["user"].(*Object)).Type(), 2, "Wrong object type")
+	assert.Equal(t, len(schema.Fields["user"].(*Object).Variables), 1, "Wrong object type")
+	assert.Equal(t, schema.Fields["user"].(*Object).Fields["name"].(Fields).Type(), 1, "Wrong object name")
 }
 
 func TestParserShouldHandleDict(t *testing.T) {
@@ -156,10 +154,10 @@ func TestParserShouldHandleDict(t *testing.T) {
 	  }
 	`)
 
-	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, schema.Objects[0].Name, "user", "Wrong object name")
-	assert.Equal(t, schema.Objects[0].Fields[0].Name, "name", "Wrong field name")
-	assert.Equal(t, len(schema.Objects[0].variables), 1, "Wrong variable length")
+	assert.Equal(t, schema.Fields["user"].(Fields).Type(), 2, "Wrong object type")
+	assert.Equal(t, (schema.Fields["user"].(*Object)).Type(), 2, "Wrong object type")
+	assert.Equal(t, len(schema.Fields["user"].(*Object).Variables), 1, "Wrong object type")
+	assert.Equal(t, schema.Fields["user"].(*Object).Fields["name"].(Fields).Type(), 1, "Wrong object name")
 }
 
 func TestParserShouldHandleString(t *testing.T) {
@@ -171,29 +169,13 @@ func TestParserShouldHandleString(t *testing.T) {
 	  }
 	`)
 
-	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, schema.Objects[0].Name, "user", "Wrong object name")
-	assert.Equal(t, schema.Objects[0].Fields[0].Name, "name", "Wrong field name")
-	assert.Equal(t, len(schema.Objects[0].variables), 1, "Wrong variable length")
+	assert.Equal(t, schema.Fields["user"].(Fields).Type(), 2, "Wrong object type")
+	assert.Equal(t, (schema.Fields["user"].(*Object)).Type(), 2, "Wrong object type")
+	assert.Equal(t, len(schema.Fields["user"].(*Object).Variables), 1, "Wrong object type")
+	assert.Equal(t, schema.Fields["user"].(*Object).Fields["name"].(Fields).Type(), 1, "Wrong object name")
 }
 
-func TestParserShouldHandleFragments(t *testing.T) {
-	schema := Parse(`
-	  {
-		user(name: "mark"){
-		  ...SimpleUser
-		}
-	  }
-
-	  fragment SimpleUser on User {
-		name
-	  }
-	`)
-
-	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, len(schema.Objects[0].fragments), 1, "Wrong object name")
-}
-
+/*
 func TestParserIncludeOperator(t *testing.T) {
 	schema := Parse(`
 	  {
@@ -220,6 +202,23 @@ func TestParserSkipOperator(t *testing.T) {
 	assert.Equal(t, schema.Name, "root", "Wrong schema name")
 	assert.Equal(t, schema.Objects[0].conditional.variant, "skip", "Wrong conditional name")
 	assert.Equal(t, len(schema.Objects[0].fragments), 1, "Wrong fragment name")
+}
+
+func TestParserShouldHandleFragments(t *testing.T) {
+	schema := Parse(`
+	  {
+		user(name: "mark"){
+		  ...SimpleUser
+		}
+	  }
+
+	  fragment SimpleUser on User {
+		name
+	  }
+	`)
+
+	assert.Equal(t, schema.Name, "root", "Wrong schema name")
+	assert.Equal(t, len(schema.Objects[0].fragments), 1, "Wrong object name")
 }
 
 func TestParserOnFragment(t *testing.T) {

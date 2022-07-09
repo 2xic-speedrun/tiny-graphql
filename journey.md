@@ -80,3 +80,19 @@ query test {
 
 ## Day 5
 Starting on the refactoring of the schema parser now. 
+
+One hour later (ish): reimplemented most of the logic now to use the new map interface. Things are looking good, and working a lot better. 
+
+Still have to move over the fragment and conditional logic, but that should not be too hard. 
+
+So I was able to solve the two first key points from yesterday.
+
+Things to do tomorrow
+
+- Add test for key / value order of response (schema and response should have same order)
+- Add support object arguments in resolver
+- Update the fragment + conditional logic
+- 
+
+
+
