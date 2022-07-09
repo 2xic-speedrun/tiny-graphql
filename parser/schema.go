@@ -1,11 +1,5 @@
 package parser
 
-import (
-	"fmt"
-	"regexp"
-	"strings"
-)
-
 func Parse(schema string) Schema {
 	tokens := GetTokens(schema)
 
@@ -18,10 +12,10 @@ func Parse(schema string) Schema {
 
 func (parser *Parser) parseSchema() Schema {
 	data := map[string]interface{}{}
-	if parser.Tokens[parser.index] == "query" || parser.Tokens[parser.index] == "mutation" {
-		name := parser.Tokens[parser.index+1]
-		parser.index += 2
-		// parser arguments
+	if parser.isNextTokenThenSkip("query") || parser.isNextTokenThenSkip("mutation") {
+		name := parser.Tokens[parser.index]
+		parser.index += 1
+
 		variables := parser.ParseArguments()
 		parser.index += 1
 
@@ -39,9 +33,7 @@ func (parser *Parser) parseSchema() Schema {
 			schema.Fragments[fragment.Name] = *fragment
 		}
 		return schema
-	} else if parser.Tokens[parser.index] == "{" {
-		parser.index += 1
-
+	} else if parser.isNextTokenThenSkip("{") {
 		schema := Schema{
 			Name:      "root",
 			variant:   parser.Tokens[parser.index],
@@ -140,7 +132,6 @@ func (parser *Parser) ParseAlias() *string {
 }
 
 func (parser *Parser) ParseObject() *Object {
-	//	peeked := parser.Peek(1)
 	if parser.isPeekToken("(", 1) || parser.isPeekToken("{", 1) {
 		name := parser.Tokens[parser.index]
 		parser.index += 1
@@ -160,46 +151,6 @@ func (parser *Parser) ParseObject() *Object {
 	}
 }
 
-func (parser *Parser) ParseArguments() []Variable {
-	variables := []Variable{}
-	parser.ParseScope("(", ")", func() {
-		key := parser.Peek(0)
-		terminator := parser.Peek(1)
-		parser.index += 2
-		var value *string
-
-		isAlpha := regexp.MustCompile(`^[A-Za-z]+$`).MatchString
-		isNumeric := regexp.MustCompile(`^0|[1-9]\d*$`).MatchString
-		if isAlpha(*parser.Peek(0)) || isNumeric(*parser.Peek(0)) {
-			value = parser.Peek(0)
-			parser.index++
-		} else if strings.HasPrefix(*parser.Peek(0), "$") {
-			value = parser.Peek(0)
-			parser.index++
-		} else if strings.HasPrefix(*parser.Peek(0), "\"") {
-			value = parser.Peek(0)
-			parser.index++
-		} else {
-			value = parser.ParseArray()
-			if value == nil {
-				value = parser.ParseDict()
-			}
-		}
-
-		if key != nil && terminator != nil && value != nil {
-			variables = append(variables, Variable{
-				key:   *key,
-				value: *value,
-			})
-		} else {
-			panic("Invalid arguments")
-		}
-	},
-		parser.DictAndArrayTerminatorFunction)
-
-	return variables
-}
-
 func (parser *Parser) DictAndArrayTerminatorFunction(terminator string) bool {
 	finished := parser.Peek(0)
 	if finished != nil && *finished == terminator {
@@ -210,117 +161,9 @@ func (parser *Parser) DictAndArrayTerminatorFunction(terminator string) bool {
 	return false
 }
 
-func (parser *Parser) ParseArray() *string {
-	results := ""
-	parser.ParseScope("[", "]", func() {
-		results += *parser.Read()
-	},
-		parser.DictAndArrayTerminatorFunction)
-	if len(results) == 0 {
-		return nil
-	}
-	return &results
-}
-
-func (parser *Parser) ParseDict() *string {
-	results := ""
-	parser.ParseScope("{", "}", func() {
-		results += *parser.Read()
-	},
-		parser.DictAndArrayTerminatorFunction)
-	if len(results) == 0 {
-		return nil
-	}
-	return &results
-}
-
-func (parser *Parser) ParseConditional() *Conditional {
-	if parser.isNextTokenThenSkip("@") {
-		if parser.isNextTokenThenSkip("skip") {
-			return &Conditional{
-				variant:   "skip",
-				variables: parser.ParseArguments(),
-			}
-		} else if parser.isNextTokenThenSkip("include") {
-			return &Conditional{
-				variant:   "include",
-				variables: parser.ParseArguments(),
-			}
-		}
-	}
-	return nil
-}
-
-func (parser *Parser) ParseFragmentReference() *FragmentReference {
-	if parser.isNextTokenSequence([]string{".", ".", "."}) {
-		if parser.isNextTokenThenSkip("on") {
-			object := *parser.Read()
-			fragment_reference := &FragmentReference{
-				Name:   object,
-				Fields: make(map[string]interface{}),
-			}
-			fragment_reference.reference = &fragment_reference.Fields
-
-			parser.index += 1
-			parser.ConstructFragmentReference((fragment_reference))
-			return fragment_reference
-		}
-
-		return &FragmentReference{
-			Name: *parser.Read(),
-		}
-	}
-	return nil
-}
-
-func (parser *Parser) ConstructFragmentReference(fragment_reference *FragmentReference) {
-	parser.BaseParser(func(alias *string, object *Object, _fragment_reference *FragmentReference) {
-		current_map := *fragment_reference.reference
-		if _fragment_reference != nil {
-			fmt.Println(_fragment_reference.Name)
-			parser.ConstructFragmentReference(
-				_fragment_reference,
-			)
-			current_map[_fragment_reference.Name] = _fragment_reference
-		}
-
-		if alias != nil {
-			panic("can a fragment has a alias ? ")
-		}
-		if object != nil {
-			panic("not implemented")
-		} else {
-			field := parser.ParseField()
-			current_map[*field] = &Field{
-				name:  *field,
-				alias: alias,
-			}
-		}
-	})
-}
-
-func (parser *Parser) ParseFragment() *FragmentReference {
-	if parser.isNextTokenThenSkip("fragment") {
-		fragment_name := parser.Read()
-		if parser.isNextTokenThenSkip("on") {
-			on_object := parser.Read()
-			fragment_reference := &FragmentReference{
-				object: *on_object,
-				Name:   *fragment_name,
-				Fields: make(map[string]interface{}),
-			}
-			fragment_reference.reference = &fragment_reference.Fields
-			parser.index += 1
-			parser.ConstructFragmentReference(fragment_reference)
-			return fragment_reference
-		}
-	}
-	return nil
-}
-
 const (
-	field_type  = 1
-	object_type = 2
+	Field_type  = 1
+	Object_type = 2
 )
 
 type Schema struct {
@@ -334,54 +177,10 @@ type Schema struct {
 	parser    Parser
 }
 
-/*
-type Fragments struct {
-	Name   string
-	Fields map[string]interface{}
-}
-*/
 type Fields interface {
 	Type() int
 	Name() string
 	Alias() *string
-}
-
-type Object struct {
-	name               string
-	alias              *string
-	Fields             map[string]interface{}
-	Variables          []Variable
-	Conditional        *Conditional
-	Fragment_reference *FragmentReference
-}
-
-func (object *Object) Name() string {
-	return object.name
-}
-
-func (object *Object) Type() int {
-	return object_type
-}
-
-func (object *Object) Alias() *string {
-	return object.alias
-}
-
-type Field struct {
-	name  string
-	alias *string
-}
-
-func (field *Field) Name() string {
-	return field.name
-}
-
-func (field *Field) Type() int {
-	return field_type
-}
-
-func (field *Field) Alias() *string {
-	return field.alias
 }
 
 type Variable struct {
@@ -392,11 +191,4 @@ type Variable struct {
 type Conditional struct {
 	variant   string
 	variables []Variable
-}
-
-type FragmentReference struct {
-	object    string
-	Name      string
-	Fields    map[string]interface{}
-	reference *map[string]interface{}
 }
