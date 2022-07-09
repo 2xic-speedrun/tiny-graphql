@@ -175,35 +175,6 @@ func TestParserShouldHandleString(t *testing.T) {
 	assert.Equal(t, schema.Fields["user"].(*Object).Fields["name"].(Fields).Type(), 1, "Wrong object name")
 }
 
-/*
-func TestParserIncludeOperator(t *testing.T) {
-	schema := Parse(`
-	  {
-		user(name: "mark") @include(if: true){
-		  ...SimpleUser
-		}
-	  }
-	`)
-
-	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, schema.Objects[0].conditional.variant, "include", "Wrong conditional name")
-	assert.Equal(t, len(schema.Objects[0].fragments), 1, "Wrong fragment name")
-}
-
-func TestParserSkipOperator(t *testing.T) {
-	schema := Parse(`
-	  {
-		user(name: "mark") @skip(if: true){
-		  ...SimpleUser
-		}
-	  }
-	`)
-
-	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, schema.Objects[0].conditional.variant, "skip", "Wrong conditional name")
-	assert.Equal(t, len(schema.Objects[0].fragments), 1, "Wrong fragment name")
-}
-
 func TestParserShouldHandleFragments(t *testing.T) {
 	schema := Parse(`
 	  {
@@ -218,7 +189,8 @@ func TestParserShouldHandleFragments(t *testing.T) {
 	`)
 
 	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, len(schema.Objects[0].fragments), 1, "Wrong object name")
+	assert.Equal(t, (schema.Fields["user"].(*Object)).Fragment_reference.name, "SimpleUser", "Wrong object type")
+	assert.Equal(t, schema.Fragments["SimpleUser"].Fields["name"].(Fields).Type(), 1)
 }
 
 func TestParserOnFragment(t *testing.T) {
@@ -230,11 +202,40 @@ func TestParserOnFragment(t *testing.T) {
 		  }
 		}
 	  }
+
+	  fragment SimpleUser on User {
+		name
+	  }
 	`)
 
 	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, len(schema.Objects[0].fragments[0].child.fragments), 1, "Wrong schema name")
-	assert.Equal(t, schema.Objects[0].fragments[0].object, "Admin", "Wrong schema name")
-	assert.Equal(t, schema.Objects[0].fragments[0].child.fragments[0].name, "SimpleUser", "Wrong schema name")
+	assert.Equal(t, (schema.Fields["user"].(*Object)).Fragment_reference.name, "Admin", "Wrong fragment name type")
+	assert.Equal(t, schema.Fields["user"].(*Object).Fragment_reference.Fields["SimpleUser"].(*FragmentReference).name, "SimpleUser", "Wrong fragment name")
 }
-*/
+
+func TestParserIncludeOperator(t *testing.T) {
+	schema := Parse(`
+	  {
+		user(name: "mark") @include(if: true){
+		  ...SimpleUser
+		}
+	  }
+	`)
+
+	assert.Equal(t, schema.Name, "root", "Wrong schema name")
+	assert.Equal(t, schema.Fields["user"].(*Object).Conditional.variant, "include", "Wrong conditional name")
+}
+
+func TestParserSkipOperator(t *testing.T) {
+	schema := Parse(`
+	  {
+		user(name: "mark") @skip(if: true){
+		  ...SimpleUser
+		}
+	  }
+	`)
+
+	assert.Equal(t, schema.Name, "root", "Wrong schema name")
+	assert.Equal(t, schema.Name, "root", "Wrong schema name")
+	assert.Equal(t, schema.Fields["user"].(*Object).Conditional.variant, "skip", "Wrong conditional name")
+}

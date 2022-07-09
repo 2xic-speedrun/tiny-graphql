@@ -142,6 +142,14 @@ func (object *Object) Add_field(name string, resolve func() string) *Field {
 	return field
 }
 
+func (object *Object) Add_object(child_object *Object) *Object {
+	if object.resolves == nil {
+		object.resolves = make(map[string]Resolvers)
+	}
+	object.resolves[child_object.name] = child_object
+	return child_object
+}
+
 func (field *Field) Name() string {
 	return field.name
 }

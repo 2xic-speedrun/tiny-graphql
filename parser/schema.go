@@ -32,8 +32,12 @@ func (parser *Parser) parseSchema() Schema {
 			reference: &data,
 			parser:    *parser,
 			Variables: variables,
-		}
+			Fragments: map[string]FragmentReference{}}
 		schema.ParseObjectAndFields()
+		fragment := schema.parser.ParseFragment()
+		if fragment != nil {
+			schema.Fragments[fragment.name] = *fragment
+		}
 		return schema
 	} else if parser.Tokens[parser.index] == "{" {
 		parser.index += 1
@@ -44,8 +48,15 @@ func (parser *Parser) parseSchema() Schema {
 			Fields:    data,
 			reference: &data,
 			parser:    *parser,
+			Fragments: map[string]FragmentReference{},
 		}
 		schema.ParseObjectAndFields()
+
+		fragment := schema.parser.ParseFragment()
+		if fragment != nil {
+			schema.Fragments[fragment.name] = *fragment
+		}
+
 		return schema
 	} else {
 		panic("Invalid schema")
@@ -53,38 +64,28 @@ func (parser *Parser) parseSchema() Schema {
 }
 
 func (schema *Schema) ParseObjectAndFields() {
-	//	results.Alias = alias
-	fmt.Println("HELLLLOOO")
-	if *schema.parser.Peek(0) == "{" {
-		panic("error in parser")
-	}
-	fmt.Println("HELLLLOOO")
-	lastIndex := schema.parser.index
-	for schema.parser.index < len(schema.parser.Tokens) {
-		peekToken := schema.parser.Peek(0)
-		if peekToken != nil && *peekToken == "}" {
-			break
-		}
-		if *schema.parser.Peek(0) == "{" {
-			panic("error in parser")
-		}
-
-		alias := schema.parser.ParseAlias()
-		object := schema.parser.ParseObject()
+	schema.parser.BaseParser(func(
+		alias *string,
+		object *Object,
+		fragment_reference *FragmentReference,
+	) {
 		current_map := *schema.reference
-		fmt.Println(object)
 
 		if object != nil {
 			object.alias = alias
+			object.Fragment_reference = fragment_reference
 			old_reference := schema.reference
-			current_map[object.Name()] = object
 
+			current_map[object.Name()] = object
 			current_map[object.Name()].(*Object).Fields = make(map[string]interface{})
+
 			object_field_reference := current_map[object.Name()].(*Object).Fields
 			schema.reference = &object_field_reference
+
 			schema.ParseObjectAndFields()
 
 			schema.reference = old_reference
+
 		} else {
 			field := schema.parser.ParseField()
 			current_map[*field] = &Field{
@@ -92,38 +93,36 @@ func (schema *Schema) ParseObjectAndFields() {
 				alias: alias,
 			}
 		}
+	})
+}
 
-		if schema.parser.index == lastIndex {
-			panic("something is wrong")
-		} else {
-			lastIndex = schema.parser.index
+func (parser *Parser) BaseParser(callback func(alias *string, object *Object, fragment_reference *FragmentReference)) {
+	if *parser.Peek(0) == "{" {
+		panic("error in parser")
+	}
+	lastIndex := parser.index
+	for parser.index < len(parser.Tokens) {
+		peekToken := parser.Peek(0)
+		if peekToken != nil && *peekToken == "}" {
+			break
+		}
+		if *parser.Peek(0) == "{" {
+			panic("error in parser")
 		}
 
-		/*
-			fragment := parser.ParseFragmentReference()
-			object := parser.ParseObject()
-			fmt.Printf("%d - %s (%d)\n", parser.index, parser.Tokens[parser.index], len(parser.Tokens[parser.index]))
+		alias := parser.ParseAlias()
+		object := parser.ParseObject()
+		fragment_reference := parser.ParseFragmentReference()
 
-			if fragment != nil {
-				results.fragments = append(results.fragments, *fragment)
-			}
+		callback(alias, object, fragment_reference)
 
-			if object == nil {
-				if field == nil {
-					panic("Something is wrong")
-				} else {
-					fmt.Printf("Found field %s\n", *field)
-					results.Fields = append(results.Fields, Field{
-						Name:  *field,
-						alias: alias,
-					})
-				}
-			} else {
-				//fmt.Printf("object %s, current token %s\n", *object, parser.Tokens[parser.index])
-				results.objects = append(results.objects, parser.ParseObjectAndFields(*object, alias))
-			}
-		*/
+		if parser.index == lastIndex {
+			panic("something is wrong")
+		} else {
+			lastIndex = parser.index
+		}
 	}
+	parser.index += 1
 }
 
 func (parser *Parser) ParseField() *string {
@@ -144,22 +143,17 @@ func (parser *Parser) ParseObject() *Object {
 	//	peeked := parser.Peek(1)
 	if parser.isPeekToken("(", 1) || parser.isPeekToken("{", 1) {
 		name := parser.Tokens[parser.index]
-		//	results := getEmptyObject(name)
-
 		parser.index += 1
-		//results.variables =
+
 		variables := parser.ParseArguments()
-		/*
-			condition := parser.ParseConditional()
-			if condition != nil {
-				results.conditional = *condition
-			}
-		*/
+		condition := parser.ParseConditional()
+
 		parser.index += 1
 
 		return &Object{
-			name:      name,
-			Variables: variables,
+			name:        name,
+			Variables:   variables,
+			Conditional: condition,
 		}
 	} else {
 		return nil
@@ -240,16 +234,14 @@ func (parser *Parser) ParseDict() *string {
 	return &results
 }
 
-/*
-
 func (parser *Parser) ParseConditional() *Conditional {
-	if parser.isNextToken("@") {
-		if parser.isNextToken("skip") {
+	if parser.isNextTokenThenSkip("@") {
+		if parser.isNextTokenThenSkip("skip") {
 			return &Conditional{
 				variant:   "skip",
 				variables: parser.ParseArguments(),
 			}
-		} else if parser.isNextToken("include") {
+		} else if parser.isNextTokenThenSkip("include") {
 			return &Conditional{
 				variant:   "include",
 				variables: parser.ParseArguments(),
@@ -259,49 +251,21 @@ func (parser *Parser) ParseConditional() *Conditional {
 	return nil
 }
 
-
-func (parser *Parser) ParseLiteral() {
-	parser.Peek(0)
-	parser.index += 1
-}
-
-func (parser *Parser) ParseFragment() *Fragment {
-	if parser.isNextToken("fragment") {
-		fragmentName := parser.Read()
-		if parser.isNextToken("on") {
-			return &Fragment{
-				name: *fragmentName,
-				on:   *parser.Read(),
-				fields: parser.ParseObjectAndFields(
-					ObjectAndFields{
-						Name:      "fragment",
-						Alias:     nil,
-						objects:   []ObjectAndFields{},
-						Fields:    []Field{},
-						variables: []Variable{},
-					},
-					nil,
-				),
-			}
-		}
-	}
-
-	return nil
-}
-
 func (parser *Parser) ParseFragmentReference() *FragmentReference {
 	if parser.isNextTokenSequence([]string{".", ".", "."}) {
-		if parser.isNextToken("on") {
+		if parser.isNextTokenThenSkip("on") {
 			object := *parser.Read()
-			parser.index += 1
-			return &FragmentReference{
-				object: object,
-				child: parser.ParseObjectAndFields(
-					getEmptyObject(""),
-					nil,
-				),
+			fragment_reference := &FragmentReference{
+				name:   object,
+				Fields: make(map[string]interface{}),
 			}
+			fragment_reference.reference = &fragment_reference.Fields
+
+			parser.index += 1
+			parser.ConstructFragmentReference((fragment_reference))
+			return fragment_reference
 		}
+
 		return &FragmentReference{
 			name: *parser.Read(),
 		}
@@ -309,15 +273,50 @@ func (parser *Parser) ParseFragmentReference() *FragmentReference {
 	return nil
 }
 
-func getEmptyObject(name string) ObjectAndFields {
-	return ObjectAndFields{
-		Name:    name,
-		objects: []ObjectAndFields{},
-		Fields:  []Field{},
-		Alias:   nil,
-	}
+func (parser *Parser) ConstructFragmentReference(fragment_reference *FragmentReference) {
+	parser.BaseParser(func(alias *string, object *Object, _fragment_reference *FragmentReference) {
+		current_map := *fragment_reference.reference
+		if _fragment_reference != nil {
+			fmt.Println(_fragment_reference.name)
+			parser.ConstructFragmentReference(
+				_fragment_reference,
+			)
+			current_map[_fragment_reference.name] = _fragment_reference
+		}
+
+		if alias != nil {
+			panic("can a fragment has a alias ? ")
+		}
+		if object != nil {
+			panic("not implemented")
+		} else {
+			field := parser.ParseField()
+			current_map[*field] = &Field{
+				name:  *field,
+				alias: alias,
+			}
+		}
+	})
 }
-*/
+
+func (parser *Parser) ParseFragment() *FragmentReference {
+	if parser.isNextTokenThenSkip("fragment") {
+		fragment_name := parser.Read()
+		if parser.isNextTokenThenSkip("on") {
+			on_object := parser.Read()
+			fragment_reference := &FragmentReference{
+				object: *on_object,
+				name:   *fragment_name,
+				Fields: make(map[string]interface{}),
+			}
+			fragment_reference.reference = &fragment_reference.Fields
+			parser.index += 1
+			parser.ConstructFragmentReference(fragment_reference)
+			return fragment_reference
+		}
+	}
+	return nil
+}
 
 const (
 	field_type  = 1
@@ -327,13 +326,20 @@ const (
 type Schema struct {
 	Name      string
 	variant   string
-	Fields    map[string]interface{}
 	Variables []Variable
+	Fragments map[string]FragmentReference
+	Fields    map[string]interface{}
 
 	reference *map[string]interface{}
 	parser    Parser
 }
 
+/*
+type Fragments struct {
+	Name   string
+	Fields map[string]interface{}
+}
+*/
 type Fields interface {
 	Type() int
 	Name() string
@@ -341,10 +347,12 @@ type Fields interface {
 }
 
 type Object struct {
-	name      string
-	alias     *string
-	Fields    map[string]interface{}
-	Variables []Variable
+	name               string
+	alias              *string
+	Fields             map[string]interface{}
+	Variables          []Variable
+	Conditional        *Conditional
+	Fragment_reference *FragmentReference
 }
 
 func (object *Object) Name() string {
@@ -362,8 +370,6 @@ func (object *Object) Alias() *string {
 type Field struct {
 	name  string
 	alias *string
-	/*	Name  string
-		alias *string*/
 }
 
 func (field *Field) Name() string {
@@ -383,37 +389,14 @@ type Variable struct {
 	value string
 }
 
-/*
-type Object struct {
-	name   string
-	alias  string
-	fields []Field
-}
-
-type ObjectAndFields struct {
-	Name        string
-	Alias       *string
-	variables   []Variable
-	objects     []ObjectAndFields
-	Fields      []Field
-	fragments   []FragmentReference
-	conditional Conditional
-}
-
-type Fragment struct {
-	name   string
-	on     string
-	fields ObjectAndFields
-}
-
-type FragmentReference struct {
-	object string
-	name   string
-	child  ObjectAndFields
-}
-
 type Conditional struct {
 	variant   string
 	variables []Variable
 }
-*/
+
+type FragmentReference struct {
+	object    string
+	name      string
+	Fields    map[string]interface{}
+	reference *map[string]interface{}
+}
