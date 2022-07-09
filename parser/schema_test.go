@@ -189,7 +189,7 @@ func TestParserShouldHandleFragments(t *testing.T) {
 	`)
 
 	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, (schema.Fields["user"].(*Object)).Fragment_reference.name, "SimpleUser", "Wrong object type")
+	assert.Equal(t, (schema.Fields["user"].(*Object)).Fragment_reference.Name, "SimpleUser", "Wrong object type")
 	assert.Equal(t, schema.Fragments["SimpleUser"].Fields["name"].(Fields).Type(), 1)
 }
 
@@ -209,8 +209,8 @@ func TestParserOnFragment(t *testing.T) {
 	`)
 
 	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, (schema.Fields["user"].(*Object)).Fragment_reference.name, "Admin", "Wrong fragment name type")
-	assert.Equal(t, schema.Fields["user"].(*Object).Fragment_reference.Fields["SimpleUser"].(*FragmentReference).name, "SimpleUser", "Wrong fragment name")
+	assert.Equal(t, (schema.Fields["user"].(*Object)).Fragment_reference.Name, "Admin", "Wrong fragment name type")
+	assert.Equal(t, schema.Fields["user"].(*Object).Fragment_reference.Fields["SimpleUser"].(*FragmentReference).Name, "SimpleUser", "Wrong fragment name")
 }
 
 func TestParserIncludeOperator(t *testing.T) {

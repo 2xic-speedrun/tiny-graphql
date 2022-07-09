@@ -36,7 +36,7 @@ func (parser *Parser) parseSchema() Schema {
 		schema.ParseObjectAndFields()
 		fragment := schema.parser.ParseFragment()
 		if fragment != nil {
-			schema.Fragments[fragment.name] = *fragment
+			schema.Fragments[fragment.Name] = *fragment
 		}
 		return schema
 	} else if parser.Tokens[parser.index] == "{" {
@@ -54,7 +54,7 @@ func (parser *Parser) parseSchema() Schema {
 
 		fragment := schema.parser.ParseFragment()
 		if fragment != nil {
-			schema.Fragments[fragment.name] = *fragment
+			schema.Fragments[fragment.Name] = *fragment
 		}
 
 		return schema
@@ -256,7 +256,7 @@ func (parser *Parser) ParseFragmentReference() *FragmentReference {
 		if parser.isNextTokenThenSkip("on") {
 			object := *parser.Read()
 			fragment_reference := &FragmentReference{
-				name:   object,
+				Name:   object,
 				Fields: make(map[string]interface{}),
 			}
 			fragment_reference.reference = &fragment_reference.Fields
@@ -267,7 +267,7 @@ func (parser *Parser) ParseFragmentReference() *FragmentReference {
 		}
 
 		return &FragmentReference{
-			name: *parser.Read(),
+			Name: *parser.Read(),
 		}
 	}
 	return nil
@@ -277,11 +277,11 @@ func (parser *Parser) ConstructFragmentReference(fragment_reference *FragmentRef
 	parser.BaseParser(func(alias *string, object *Object, _fragment_reference *FragmentReference) {
 		current_map := *fragment_reference.reference
 		if _fragment_reference != nil {
-			fmt.Println(_fragment_reference.name)
+			fmt.Println(_fragment_reference.Name)
 			parser.ConstructFragmentReference(
 				_fragment_reference,
 			)
-			current_map[_fragment_reference.name] = _fragment_reference
+			current_map[_fragment_reference.Name] = _fragment_reference
 		}
 
 		if alias != nil {
@@ -306,7 +306,7 @@ func (parser *Parser) ParseFragment() *FragmentReference {
 			on_object := parser.Read()
 			fragment_reference := &FragmentReference{
 				object: *on_object,
-				name:   *fragment_name,
+				Name:   *fragment_name,
 				Fields: make(map[string]interface{}),
 			}
 			fragment_reference.reference = &fragment_reference.Fields
@@ -396,7 +396,7 @@ type Conditional struct {
 
 type FragmentReference struct {
 	object    string
-	name      string
+	Name      string
 	Fields    map[string]interface{}
 	reference *map[string]interface{}
 }

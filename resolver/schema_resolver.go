@@ -1,10 +1,12 @@
 package resolver
 
 import (
+	"fmt"
+
 	"github.com/2xic-speedrun/tiny-graphql/parser"
 )
 
-func (schema *ResolverSchema) Add_field(name string, resolve func() string) {
+func (schema *ResolverSchema) Add_field(name string, resolve func() interface{}) {
 	field := &Field{
 		name:     name,
 		resolve:  resolve,
@@ -24,48 +26,63 @@ func (schema *ResolverSchema) Add_Object(name string) *Object {
 func (schema *ResolverSchema) Resolve(object parser.Schema) map[string]interface{} {
 	data := map[string]interface{}{}
 	//var reference *map[string]interface{}
-	schema.reference = &data
+	reference := &data
 
 	if 0 < len(object.Name) {
 		data[object.Name] = make(map[string]interface{})
 		newReference := data[object.Name].(map[string]interface{})
-		schema.reference = &newReference
+		reference = &newReference
 	}
 
-	schema.recursive_resolve(object.Fields)
+	schema.fragments = object.Fragments
+	//	c := make(chan bool)
+	changes := make(chan GoSpeed)
+	schema.recursive_resolve(object.Fields, reference, nil, &changes)
+	//	fmt.Println(<-c)
 
 	return data
 }
 
-func (schema *ResolverSchema) recursive_resolve(object map[string]interface{}) {
+func (schema *ResolverSchema) recursive_resolve(object map[string]interface{}, reference *map[string]interface{}, working_object *Object, changes *chan GoSpeed) {
+	open_channels := 0
 	for field_name, field := range object {
 		_, ok := field.(*parser.Object)
 		if ok {
 			object_field := field.(*parser.Object)
-			old_reference := schema.reference
-			(*schema.reference)[field_name] = make(map[string]interface{})
-			new_reference := (*schema.reference)[field_name].(map[string]interface{})
-			schema.reference = &new_reference
+			(*reference)[field_name] = make(map[string]interface{})
+			new_reference := (*reference)[field_name].(map[string]interface{})
 
-			last_object_reference := schema.working_object
+			if object_field.Fragment_reference != nil {
+				// TODO : this should check if the reference is partial
+				object_field.Fields = schema.fragments[object_field.Fragment_reference.Name].Fields
+			}
 
-			object := *schema.resolve_field(object_field.Name())
+			object := *schema.resolve_field(object_field.Name(), working_object)
 			object_reference := (object.(*Object))
-			schema.working_object = object_reference
 
-			schema.recursive_resolve(object_field.Fields)
-
-			schema.working_object = last_object_reference
-
-			schema.reference = old_reference
-
+			open_channels++
+			go schema.recursive_resolve(object_field.Fields, &new_reference, object_reference, changes)
 		} else {
-			field_value := schema.resolve_field(field.(*parser.Field).Name())
+			field_value := schema.resolve_field(field.(*parser.Field).Name(), working_object)
 			if field_value == nil {
 				panic("invalid field")
 			}
-			value := (*field_value).Resolve(nil)
-			(*schema.reference)[field_name] = value
+			go (*field_value).Resolve(&field_name, *changes, reference)
+			open_channels++
+		}
+	}
+
+	fmt.Println(open_channels)
+	for i := 0; i < open_channels; i++ {
+		change := <-*changes
+		if change.object {
+			continue
+		}
+		(*change.reference)[change.name] = change.value
+	}
+	if working_object != nil {
+		*changes <- GoSpeed{
+			object: true,
 		}
 	}
 }
@@ -75,25 +92,26 @@ const (
 	object_type = 2
 )
 
-func (schema *ResolverSchema) resolve_field(name string) *Resolvers {
-	if schema.working_object == nil {
+func (schema *ResolverSchema) resolve_field(name string, working_object *Object) *Resolvers {
+	if working_object == nil {
 		value := schema.Resolvers[name]
 		return &value
 	} else {
-		value := schema.working_object.resolves[name]
+		value := working_object.resolves[name]
 		return &value
 	}
 }
 
 type ResolverSchema struct {
-	Resolvers      map[string]Resolvers
-	reference      *map[string]interface{}
-	working_object *Object
+	Resolvers map[string]Resolvers
+	/*	reference      *map[string]interface{}
+		working_object *Object*/
+	fragments map[string]parser.FragmentReference
 }
 
 type Resolvers interface {
 	Name() string
-	Resolve(name *string) string
+	Resolve(name *string, results chan GoSpeed, reference *map[string]interface{})
 	Type() int
 	Child() map[string]Resolvers
 }
@@ -105,16 +123,17 @@ type Object struct {
 
 type Field struct {
 	name     string
-	resolve  func() string
+	resolve  func() interface{}
 	resolves map[string]Resolvers
 }
 
-func (field *Object) Resolve(name *string) string {
+func (field *Object) Resolve(name *string, results chan GoSpeed, reference *map[string]interface{}) {
 	if name == nil {
 		panic("name should not be nil")
 	}
+	fmt.Println("hey hey", name)
 	// ops this could be another object...
-	return field.resolves[*name].Resolve(nil)
+	go field.resolves[*name].Resolve(nil, results, reference)
 }
 
 func (field *Object) Name() string {
@@ -129,7 +148,7 @@ func (field *Object) Type() int {
 	return object_type
 }
 
-func (object *Object) Add_field(name string, resolve func() string) *Field {
+func (object *Object) Add_field(name string, resolve func() interface{}) *Field {
 	field := &Field{
 		name:     name,
 		resolve:  resolve,
@@ -162,9 +181,21 @@ func (field *Field) Type() int {
 	return field_type
 }
 
-func (field *Field) Resolve(name *string) string {
-	if name != nil {
+func (field *Field) Resolve(name *string, results chan GoSpeed, reference *map[string]interface{}) {
+	/*	if name != nil {
 		panic("Name should be nil on field")
+	}*/
+	results_value := field.resolve()
+	results <- GoSpeed{
+		value:     results_value,
+		reference: reference,
+		name:      *name,
 	}
-	return field.resolve()
+}
+
+type GoSpeed struct {
+	reference *map[string]interface{}
+	value     interface{}
+	name      string
+	object    bool
 }
