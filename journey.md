@@ -77,3 +77,6 @@ query test {
 - Add test for key / value order of response
 - Add support object arguments. 
 - 
+
+## Day 5
+Starting on the refactoring of the schema parser now. 

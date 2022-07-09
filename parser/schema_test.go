@@ -6,21 +6,47 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestParseSingleField(t *testing.T) {
+	schema := Parse(`
+		{
+			build
+		}
+	`)
+
+	assert.Equal(t, schema.Name, "root", "Wrong schema name")
+	assert.Equal(t, schema.fields["build"].(Fields).Type(), 1, "Wrong field type ")
+	assert.Equal(t, schema.fields["build"].(Fields).Alias() == nil, true, "Wrong field alias")
+}
+
+func TestParseSingleFieldAlias(t *testing.T) {
+	schema := Parse(`
+		{
+			alias:build
+		}
+	`)
+
+	assert.Equal(t, schema.Name, "root", "Wrong schema name")
+	assert.Equal(t, schema.fields["build"].(Fields).Type(), 1, "Wrong field type ")
+	assert.Equal(t, *schema.fields["build"].(Fields).Alias(), "alias", "Wrong field alias ")
+}
+
 func TestParserName(t *testing.T) {
 	schema := Parse(`
 	  query GetUserName {
 		user(id: 4) {
 		  name
 		}
-	  }	  
+	  }
 	`)
 
 	assert.Equal(t, schema.Name, "GetUserName", "Wrong schema name")
 	assert.Equal(t, schema.Name, "GetUserName", "Wrong schema name")
-	assert.Equal(t, schema.Objects[0].Name, "user", "Wrong object name")
-	assert.Equal(t, schema.Objects[0].Fields[0].Name, "name", "Wrong field name")
+	assert.Equal(t, schema.fields["user"].(Fields).Type(), 2, "Wrong object name")
+	assert.Equal(t, (schema.fields["user"].(*Object)).Type(), 2, "Wrong object name")
+	assert.Equal(t, schema.fields["user"].(*Object).fields["name"].(Fields).Type(), 1, "Wrong object name")
 }
 
+/*
 func TestParserComment(t *testing.T) {
 	schema := Parse(`
 	  # This is a comment
@@ -29,7 +55,7 @@ func TestParserComment(t *testing.T) {
 			# This is a comment
 			name
 		}
-	  }	  
+	  }
 	  # This is a comment
 	`)
 	assert.Equal(t, schema.Name, "GetUserName", "Wrong schema name")
@@ -47,7 +73,7 @@ func TestNestedObject(t *testing.T) {
 				nameField
 			}
 		}
-	  }	  
+	  }
 	  # This is a comment
 	`)
 	assert.Equal(t, schema.Name, "GetUserName", "Wrong schema name")
@@ -62,7 +88,7 @@ func TestParserNameOrQueryDoesNotNeedToBeSpecified(t *testing.T) {
 		user(id: 4) {
 		  name
 		}
-	  }	  
+	  }
 	`)
 
 	assert.Equal(t, schema.Name, "root", "Wrong schema name")
@@ -76,7 +102,7 @@ func TestParserAlias(t *testing.T) {
 		aliasObject: user(id: 4) {
 		  alias: name
 		}
-	  }	  
+	  }
 	`)
 
 	assert.Equal(t, schema.Name, "root", "Wrong schema name")
@@ -94,7 +120,7 @@ func TestParserInputVariables(t *testing.T) {
 		aliasObject: user(id: $id) {
 		  alias: name
 		}
-	  }	  
+	  }
 	`)
 
 	assert.Equal(t, schema.Name, "Test", "Wrong schema name")
@@ -112,7 +138,7 @@ func TestParserShouldHandleArray(t *testing.T) {
 		user(ids: [1,2,3]){
 		  name
 		}
-	  }	  
+	  }
 	`)
 
 	assert.Equal(t, schema.Name, "root", "Wrong schema name")
@@ -127,7 +153,7 @@ func TestParserShouldHandleDict(t *testing.T) {
 		user(input: {"id": 4}){
 		  name
 		}
-	  }	  
+	  }
 	`)
 
 	assert.Equal(t, schema.Name, "root", "Wrong schema name")
@@ -142,7 +168,7 @@ func TestParserShouldHandleString(t *testing.T) {
 		user(name: "mark"){
 		  name
 		}
-	  }	  
+	  }
 	`)
 
 	assert.Equal(t, schema.Name, "root", "Wrong schema name")
@@ -212,15 +238,4 @@ func TestParserOnFragment(t *testing.T) {
 	assert.Equal(t, schema.Objects[0].fragments[0].object, "Admin", "Wrong schema name")
 	assert.Equal(t, schema.Objects[0].fragments[0].child.fragments[0].name, "SimpleUser", "Wrong schema name")
 }
-
-func TestParseSingleField(t *testing.T) {
-	schema := Parse(`
-		{
-			build
-		}
-	`)
-
-	assert.Equal(t, schema.Name, "root", "Wrong schema name")
-	assert.Equal(t, len(schema.Objects), 0, "Wrong object field parsing ")
-	assert.Equal(t, len(schema.Fields), 1, "Wrong field parsing ")
-}
+*/

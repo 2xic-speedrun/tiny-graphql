@@ -13,10 +13,17 @@ func (parser *Parser) Read() *string {
 	return results
 }
 
-func (parser *Parser) isNextToken(expected string) bool {
-	value := parser.Peek(0)
-	if value != nil && *value == expected {
+func (parser *Parser) isNextTokenThenSkip(expected string) bool {
+	if parser.isPeekToken(expected, 0) {
 		parser.index += 1
+		return true
+	}
+	return false
+}
+
+func (parser *Parser) isPeekToken(expected string, peek int) bool {
+	value := parser.Peek(peek)
+	if value != nil && *value == expected {
 		return true
 	}
 	return false
@@ -31,6 +38,22 @@ func (parser *Parser) isNextTokenSequence(sequence []string) bool {
 	}
 	parser.index += len(sequence)
 	return true
+}
+
+func (parser *Parser) ParseScope(init string, terminator string, callback func(), terminatorFunction func(terminator string) bool) bool {
+	peekArguments := parser.Peek(0)
+	if peekArguments != nil && *peekArguments == init {
+		parser.index += 1
+		for true {
+			if terminatorFunction(terminator) {
+				break
+			}
+			callback()
+		}
+		parser.index += 1
+		return true
+	}
+	return false
 }
 
 type Parser struct {

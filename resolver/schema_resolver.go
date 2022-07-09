@@ -24,41 +24,42 @@ func (schema *ResolverSchema) Add_Object(name string) *Object {
 // Todo this has to be recursive.
 func (schema *ResolverSchema) Resolve(object parser.Schema) map[string]interface{} {
 	data := map[string]interface{}{}
-	var reference *map[string]interface{}
-	reference = &data
+	/*
+		var reference *map[string]interface{}
+		reference = &data
 
-	if 0 < len(object.Name) {
-		data[object.Name] = make(map[string]interface{})
-		newReference := data[object.Name].(map[string]interface{})
-		reference = &newReference
-	}
-
-	for _, val := range object.Fields {
-		field := schema.resolve_field(val.Name)
-		if field == nil {
-			panic("invalid field")
+		if 0 < len(object.Name) {
+			data[object.Name] = make(map[string]interface{})
+			newReference := data[object.Name].(map[string]interface{})
+			reference = &newReference
 		}
-		value := (*field).Resolve(nil)
-		(*reference)[val.Name] = value
-	}
-	for _, val := range object.Objects {
-		(*reference)[val.Name] = make(map[string]interface{})
-		newReference := (*reference)[val.Name].(map[string]interface{})
-		reference = &newReference
-		object := schema.resolve_field(val.Name)
 
-		for _, field := range val.Fields {
-			field_value := (*object).Child()[field.Name].Resolve(nil)
-			(*reference)[field.Name] = field_value
+		for _, val := range object.Fields {
+			field := schema.resolve_field(val.Name)
+			if field == nil {
+				panic("invalid field")
+			}
+			value := (*field).Resolve(nil)
+			(*reference)[val.Name] = value
 		}
-	}
+		for _, val := range object.Objects {
+			(*reference)[val.Name] = make(map[string]interface{})
+			newReference := (*reference)[val.Name].(map[string]interface{})
+			reference = &newReference
+			object := schema.resolve_field(val.Name)
+
+			for _, field := range val.Fields {
+				field_value := (*object).Child()[field.Name].Resolve(nil)
+				(*reference)[field.Name] = field_value
+			}
+		}*/
 
 	return data
 }
 
 const (
-	field_type = 1
-	object     = 2
+	field_type  = 1
+	object_type = 2
 )
 
 func (schema *ResolverSchema) resolve_field(name string) *Resolvers {
@@ -105,7 +106,7 @@ func (field *Object) Child() map[string]Resolvers {
 }
 
 func (field *Object) Type() int {
-	return object
+	return object_type
 }
 
 func (object *Object) Add_field(name string, resolve func() string) *Field {

@@ -2,8 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
 )
 
 func Parse(schema string) Schema {
@@ -13,96 +11,163 @@ func Parse(schema string) Schema {
 		Tokens: tokens,
 		index:  0,
 	}
-	return parser.ParseSchema()
+	return parser.parseSchema()
 }
 
-func (parser *Parser) ParseSchema() Schema {
+func (parser *Parser) parseSchema() Schema {
+	data := map[string]interface{}{}
 	if parser.Tokens[parser.index] == "query" || parser.Tokens[parser.index] == "mutation" {
 		name := parser.Tokens[parser.index+1]
 		parser.index += 2
 		// parser arguments
-		variables := parser.ParseArguments()
+		//	variables := parser.ParseArguments()
 		parser.index += 1
-		objects_and_fields := parser.ParseObjectAndFields(getEmptyObject(name), nil)
+		//	objects_and_fields := parser.ParseObjectAndFields(getEmptyObject(name), nil)
 
-		return Schema{
+		schema := Schema{
 			Name:      name,
-			Objects:   objects_and_fields.objects,
-			Fields:    objects_and_fields.Fields,
 			variant:   parser.Tokens[parser.index],
-			Variables: variables,
+			fields:    data,
+			reference: &data,
+			parser:    *parser,
 		}
+		schema.ParseObjectAndFields()
+		return schema
 	} else if parser.Tokens[parser.index] == "{" {
 		parser.index += 1
-		objects_and_fields := parser.ParseObjectAndFields(getEmptyObject("root"), nil)
-		return Schema{
-			Name:    "root",
-			Objects: objects_and_fields.objects,
-			Fields:  objects_and_fields.Fields,
-			variant: "query",
+		fmt.Println("HELLLLOOO")
+		schema := Schema{
+			Name: "root",
+			/*			Objects:   objects_and_fields.objects,
+						Fields:    objects_and_fields.Fields,*/
+			variant:   parser.Tokens[parser.index],
+			fields:    data,
+			reference: &data,
+			parser:    *parser,
+			//			Variables: variables,
 		}
+		schema.ParseObjectAndFields()
+		return schema
+		/*
+			return Schema{
+				Name:    "root",
+				Objects: objects_and_fields.objects,
+				Fields:  objects_and_fields.Fields,
+				variant: "query",
+			}*/
 	} else {
 		panic("Invalid schema")
 	}
 }
 
-func (parser *Parser) ParseObjectAndFields(results ObjectAndFields, alias *string) ObjectAndFields {
-	results.Alias = alias
-	if *parser.Peek(0) == "{" {
+func (schema *Schema) ParseObjectAndFields() {
+	//	results.Alias = alias
+	fmt.Println("HELLLLOOO")
+	if *schema.parser.Peek(0) == "{" {
 		panic("error in parser")
 	}
-	for parser.index < len(parser.Tokens) {
-		peekToken := parser.Peek(0)
+	fmt.Println("HELLLLOOO")
+	lastIndex := schema.parser.index
+	for schema.parser.index < len(schema.parser.Tokens) {
+		peekToken := schema.parser.Peek(0)
 		if peekToken != nil && *peekToken == "}" {
 			break
 		}
-		if *parser.Peek(0) == "{" {
+		if *schema.parser.Peek(0) == "{" {
 			panic("error in parser")
 		}
-		alias := parser.ParseAlias()
-		fragment := parser.ParseFragmentReference()
-		object := parser.ParseObject()
-		fmt.Printf("%d - %s (%d)\n", parser.index, parser.Tokens[parser.index], len(parser.Tokens[parser.index]))
 
-		if fragment != nil {
-			results.fragments = append(results.fragments, *fragment)
-		}
+		alias := schema.parser.ParseAlias()
+		object := schema.parser.ParseObject()
+		current_map := *schema.reference
+		fmt.Println(object)
 
-		if object == nil {
-			field := parser.ParseField()
-			if field == nil {
-				panic("Something is wrong")
-			} else {
-				fmt.Printf("Found field %s\n", *field)
-				results.Fields = append(results.Fields, Field{
-					Name:  *field,
-					alias: alias,
-				})
-			}
+		if object != nil {
+			object.alias = alias
+			old_reference := schema.reference
+			current_map[object.Name()] = object
+
+			current_map[object.Name()].(*Object).fields = make(map[string]interface{})
+			object_field_reference := current_map[object.Name()].(*Object).fields
+			schema.reference = &object_field_reference
+			schema.ParseObjectAndFields()
+
+			schema.reference = old_reference
 		} else {
-			//fmt.Printf("object %s, current token %s\n", *object, parser.Tokens[parser.index])
-			results.objects = append(results.objects, parser.ParseObjectAndFields(*object, alias))
+			field := schema.parser.ParseField()
+			current_map[*field] = &Field{
+				name:  *field,
+				alias: alias,
+			}
 		}
-	}
 
-	return results
+		if schema.parser.index == lastIndex {
+			panic("something is wrong")
+		} else {
+			lastIndex = schema.parser.index
+		}
+
+		/*
+			fragment := parser.ParseFragmentReference()
+			object := parser.ParseObject()
+			fmt.Printf("%d - %s (%d)\n", parser.index, parser.Tokens[parser.index], len(parser.Tokens[parser.index]))
+
+			if fragment != nil {
+				results.fragments = append(results.fragments, *fragment)
+			}
+
+			if object == nil {
+				if field == nil {
+					panic("Something is wrong")
+				} else {
+					fmt.Printf("Found field %s\n", *field)
+					results.Fields = append(results.Fields, Field{
+						Name:  *field,
+						alias: alias,
+					})
+				}
+			} else {
+				//fmt.Printf("object %s, current token %s\n", *object, parser.Tokens[parser.index])
+				results.objects = append(results.objects, parser.ParseObjectAndFields(*object, alias))
+			}
+		*/
+	}
 }
 
-func (parser *Parser) ParseObject() *ObjectAndFields {
-	peeked := parser.Peek(1)
-	if peeked != nil && (*peeked == "(" || *peeked == "{") {
+func (parser *Parser) ParseField() *string {
+	return parser.Read()
+}
+
+func (parser *Parser) ParseAlias() *string {
+	// alias : field <- leaving with pointer here
+	if parser.isPeekToken(":", 1) {
+		results := parser.Read()
+		parser.index += 1
+		return results
+	}
+	return nil
+}
+
+func (parser *Parser) ParseObject() *Object {
+	//	peeked := parser.Peek(1)
+	if parser.isPeekToken("(", 1) || parser.isPeekToken("{", 1) {
 		name := parser.Tokens[parser.index]
-		results := getEmptyObject(name)
+		//	results := getEmptyObject(name)
 
 		parser.index += 1
-		results.variables = parser.ParseArguments()
-		condition := parser.ParseConditional()
-		if condition != nil {
-			results.conditional = *condition
+		//results.variables =
+		parser.ParseArguments()
+		/*
+			condition := parser.ParseConditional()
+			if condition != nil {
+				results.conditional = *condition
+			}
+		*/
+		parser.index += 1
+
+		return &Object{
+			name: name,
 		}
-		parser.index += 1
-
-		return &results
 	} else {
 		return nil
 	}
@@ -111,42 +176,56 @@ func (parser *Parser) ParseObject() *ObjectAndFields {
 func (parser *Parser) ParseArguments() []Variable {
 	variables := []Variable{}
 	parser.ParseScope("(", ")", func() {
-		key := parser.Peek(0)
-		terminator := parser.Peek(1)
-		parser.index += 2
-		var value *string
+		parser.index++
+		/*
+			key := parser.Peek(0)
+			terminator := parser.Peek(1)
+			parser.index += 2
+			var value *string
 
-		isAlpha := regexp.MustCompile(`^[A-Za-z]+$`).MatchString
-		isNumeric := regexp.MustCompile(`^0|[1-9]\d*$`).MatchString
-		if isAlpha(*parser.Peek(0)) || isNumeric(*parser.Peek(0)) {
-			value = parser.Peek(0)
-			parser.index++
-		} else if strings.HasPrefix(*parser.Peek(0), "$") {
-			value = parser.Peek(0)
-			parser.index++
-		} else if strings.HasPrefix(*parser.Peek(0), "\"") {
-			value = parser.Peek(0)
-			parser.index++
-		} else {
-			value = parser.ParseArray()
-			if value == nil {
-				value = parser.ParseDict()
+			isAlpha := regexp.MustCompile(`^[A-Za-z]+$`).MatchString
+			isNumeric := regexp.MustCompile(`^0|[1-9]\d*$`).MatchString
+			if isAlpha(*parser.Peek(0)) || isNumeric(*parser.Peek(0)) {
+				value = parser.Peek(0)
+				parser.index++
+			} else if strings.HasPrefix(*parser.Peek(0), "$") {
+				value = parser.Peek(0)
+				parser.index++
+			} else if strings.HasPrefix(*parser.Peek(0), "\"") {
+				value = parser.Peek(0)
+				parser.index++
+			} else {
+				value = parser.ParseArray()
+				if value == nil {
+					value = parser.ParseDict()
+				}
 			}
-		}
 
-		if key != nil && terminator != nil && value != nil {
-			variables = append(variables, Variable{
-				key:   *key,
-				value: *value,
-			})
-		} else {
-			panic("Invalid arguments")
-		}
+			if key != nil && terminator != nil && value != nil {
+				variables = append(variables, Variable{
+					key:   *key,
+					value: *value,
+				})
+			} else {
+				panic("Invalid arguments")
+			}*/
 	},
 		parser.DictAndArrayTerminatorFunction)
 
 	return variables
 }
+
+func (parser *Parser) DictAndArrayTerminatorFunction(terminator string) bool {
+	finished := parser.Peek(0)
+	if finished != nil && *finished == terminator {
+		return true
+	} else if finished != nil && *finished == "," {
+		parser.index += 1
+	}
+	return false
+}
+
+/*
 
 func (parser *Parser) ParseConditional() *Conditional {
 	if parser.isNextToken("@") {
@@ -189,46 +268,10 @@ func (parser *Parser) ParseDict() *string {
 	return &results
 }
 
-func (parser *Parser) ParseScope(init string, terminator string, callback func(), terminatorFunction func(terminator string) bool) bool {
-	peekArguments := parser.Peek(0)
-	if peekArguments != nil && *peekArguments == init {
-		parser.index += 1
-		for true {
-			if terminatorFunction(terminator) {
-				break
-			}
-			callback()
-		}
-		parser.index += 1
-		return true
-	}
-	return false
-}
-
-func (parser *Parser) DictAndArrayTerminatorFunction(terminator string) bool {
-	finished := parser.Peek(0)
-	if finished != nil && *finished == terminator {
-		return true
-	} else if finished != nil && *finished == "," {
-		parser.index += 1
-	}
-	return false
-}
 
 func (parser *Parser) ParseLiteral() {
 	parser.Peek(0)
 	parser.index += 1
-}
-
-func (parser *Parser) ParseAlias() *string {
-	// alias : field <- leaving with pointer here
-	peekedToken := parser.Peek(1)
-	if peekedToken != nil && *peekedToken == ":" {
-		results := parser.Read()
-		parser.index += 1
-		return results
-	}
-	return nil
 }
 
 func (parser *Parser) ParseFragment() *Fragment {
@@ -275,10 +318,6 @@ func (parser *Parser) ParseFragmentReference() *FragmentReference {
 	return nil
 }
 
-func (parser *Parser) ParseField() *string {
-	return parser.Read()
-}
-
 func getEmptyObject(name string) ObjectAndFields {
 	return ObjectAndFields{
 		Name:    name,
@@ -287,15 +326,74 @@ func getEmptyObject(name string) ObjectAndFields {
 		Alias:   nil,
 	}
 }
+*/
+
+const (
+	field_type  = 1
+	object_type = 2
+)
 
 type Schema struct {
-	Name      string
-	variant   string
-	Variables []Variable
+	Name    string
+	variant string
+	fields  map[string]interface{}
+
+	reference *map[string]interface{}
+	parser    Parser
+	/*Variables []Variable
 	Objects   []ObjectAndFields
-	Fields    []Field
+	Fields    []Field*/
 }
 
+type Fields interface {
+	Type() int
+	Name() string
+	Alias() *string
+}
+
+type Object struct {
+	name   string
+	alias  *string
+	fields map[string]interface{}
+}
+
+func (object *Object) Name() string {
+	return object.name
+}
+
+func (object *Object) Type() int {
+	return object_type
+}
+
+func (object *Object) Alias() *string {
+	return object.alias
+}
+
+type Field struct {
+	name  string
+	alias *string
+	/*	Name  string
+		alias *string*/
+}
+
+func (field *Field) Name() string {
+	return field.name
+}
+
+func (field *Field) Type() int {
+	return field_type
+}
+
+func (field *Field) Alias() *string {
+	return field.alias
+}
+
+type Variable struct {
+	key   string
+	value string
+}
+
+/*
 type Object struct {
 	name   string
 	alias  string
@@ -312,11 +410,6 @@ type ObjectAndFields struct {
 	conditional Conditional
 }
 
-type Field struct {
-	Name  string
-	alias *string
-}
-
 type Fragment struct {
 	name   string
 	on     string
@@ -329,12 +422,8 @@ type FragmentReference struct {
 	child  ObjectAndFields
 }
 
-type Variable struct {
-	key   string
-	value string
-}
-
 type Conditional struct {
 	variant   string
 	variables []Variable
 }
+*/
