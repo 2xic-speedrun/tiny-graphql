@@ -56,11 +56,32 @@ func TestParserInputVariables(t *testing.T) {
 
 	assert.Equal(t, schema.Name, "Test", "Wrong schema name")
 	assert.Equal(t, len(schema.Variables), 1, "Wrong variable length")
-	assert.Equal(t, schema.Variables[0].key, "$id", "Wrong variable name")
-	assert.Equal(t, schema.Variables[0].value, "int", "Wrong variable name")
+	assert.Equal(t, schema.Variables[0].Key, "$id", "Wrong variable name")
+	assert.Equal(t, schema.Variables[0].Value, "int", "Wrong variable name")
 	assert.Equal(t, *schema.Fields["user"].(*Object).Alias(), "aliasObject", "Wrong object alias")
-	assert.Equal(t, *&schema.Fields["user"].(*Object).Variables[0].key, "id", "Wrong variable key")
-	assert.Equal(t, *&schema.Fields["user"].(*Object).Variables[0].value, "$id", "Wrong variable value")
+	assert.Equal(t, *&schema.Fields["user"].(*Object).Variables[0].Key, "id", "Wrong variable key")
+	assert.Equal(t, *&schema.Fields["user"].(*Object).Variables[0].Value, "$id", "Wrong variable value")
+}
+
+func TestParserInputVariablesInjection(t *testing.T) {
+	schema := Parse(`
+	  query Test($id:int) {
+		aliasObject: user(id: $id) {
+		  alias: name
+		}
+	  }
+	`)
+	variables := make(map[string]interface{})
+	variables["$id"] = "4"
+	schema.Inject_variables(variables)
+
+	assert.Equal(t, schema.Name, "Test", "Wrong schema name")
+	assert.Equal(t, len(schema.Variables), 1, "Wrong variable length")
+	assert.Equal(t, schema.Variables[0].Key, "$id", "Wrong variable name")
+	assert.Equal(t, schema.Variables[0].Value, "4", "Wrong variable name")
+	assert.Equal(t, *schema.Fields["user"].(*Object).Alias(), "aliasObject", "Wrong object alias")
+	assert.Equal(t, *&schema.Fields["user"].(*Object).Variables[0].Key, "id", "Wrong variable key")
+	assert.Equal(t, *&schema.Fields["user"].(*Object).Variables[0].Value, "4", "Wrong variable value")
 }
 
 func TestParserComment(t *testing.T) {

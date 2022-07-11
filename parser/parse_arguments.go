@@ -33,8 +33,8 @@ func (parser *Parser) ParseArguments() []Variable {
 
 		if key != nil && terminator != nil && value != nil {
 			variables = append(variables, Variable{
-				key:   *key,
-				value: *value,
+				Key:   *key,
+				Value: *value,
 			})
 		} else {
 			panic("Invalid arguments")

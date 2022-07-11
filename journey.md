@@ -94,5 +94,24 @@ Things to do tomorrow
 - Update the fragment + conditional logic
 - 
 
+^ ended up coding a bit more on this, mainly added support for go routines to allow faster fetching.
 
+## Day 6
+Starting to want to find a end date, the point of the project was to have a dive a bit deeper into golang, and I think it's done it's job.
 
+Features I want to have in place before finishing off
+- Object fetch -> fetch and object, and have field resolvers on the object. Need to support nil type.
+  - Currently all fields on a object could be seen as a "field resolver", but not fully since you can't run arguments on the fields. 
+  - we do support objects in objects, but without context, so the next big thing is adding function context.
+- Should support nullable fields
+  - Don't build upon nullable fields i.e
+- Field validation of types, and variables (?)
+- Some meaningful error messages ? 
+- 
+
+----
+Okay, I solved the two biggest points I wanted to have solved mainly nullable objects, and fetching objects. 
+
+I could solve the two next problems, but then it's start to become somewhat of an implementation, and I have to finish it. This was meant to be fun, and not a big serious project.
+
+So I think I will draw the line here for now. Might come back to this project since I still have not played with generics which would be useful here.
