@@ -2,7 +2,6 @@ package resolver
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -234,13 +233,8 @@ func TestGoRoutine(t *testing.T) {
 	end := time.Now().UnixNano() / int64(time.Millisecond)
 	time := (end - start)
 
-	fmt.Println(time)
-
 	var response map[string]interface{}
 	json.Unmarshal(raw_response, &response)
-
-	fmt.Println(response)
-	fmt.Println(time)
 
 	assert.Equal(t, response["BuildInfo"].(map[string]interface{})["name"], "tiny-graphql", "Wrong resolved value name")
 	assert.Equal(t, response["BuildInfo"].(map[string]interface{})["build"].(map[string]interface{})["git"].(map[string]interface{})["hash"], "0x42", "Wrong resolved value name")

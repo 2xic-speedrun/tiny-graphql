@@ -1,7 +1,5 @@
 package parser
 
-import "fmt"
-
 func Parse(schema string) Schema {
 	tokens := GetTokens(schema)
 
@@ -134,8 +132,8 @@ func (schema *Schema) Inject_variables(variables map[string]interface{}) {
 		if variables[entry.Key] == nil {
 			panic("did not find presented variable")
 		} else {
+			// TODO: THis should just be a map from the start.
 			schema.Variables[index].Value = variables[entry.Key].(string)
-			fmt.Println(schema.Variables[index].usage)
 			for _, value := range schema.Variables[index].usage {
 				for index_usage_variables, usage_variables := range value.Variables {
 					if usage_variables.Value == entry.Key {

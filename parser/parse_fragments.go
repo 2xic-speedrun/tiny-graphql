@@ -28,7 +28,6 @@ func (parser *Parser) ConstructFragmentReference(fragment_reference *FragmentRef
 	parser.BaseParser(func(alias *string, object *Object, _fragment_reference *FragmentReference) {
 		current_map := *fragment_reference.reference
 		if _fragment_reference != nil {
-			fmt.Println(_fragment_reference.Name)
 			parser.ConstructFragmentReference(
 				_fragment_reference,
 			)
@@ -36,9 +35,10 @@ func (parser *Parser) ConstructFragmentReference(fragment_reference *FragmentRef
 		}
 
 		if alias != nil {
-			panic("can a fragment has a alias ? ")
+			panic("can a fragment have a alias ? ")
 		}
 		if object != nil {
+			// TODO: this can just reuse the base parser.
 			panic("not implemented")
 		} else {
 			field := parser.ParseField()
